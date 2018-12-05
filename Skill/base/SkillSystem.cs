@@ -26,7 +26,7 @@ public class SkillSystem : MonoBehaviour
     /// <summary>
     /// 所拥有的技能ID列表
     /// </summary>
-    public List<int> _skillIdList;
+    private List<int> skillIdList;
 
     /// <summary>
     /// 所拥有的技能对象列表
@@ -70,28 +70,81 @@ public class SkillSystem : MonoBehaviour
         }
     }
 
+    public List<int> SkillIdList
+    {
+        get
+        {
+            if (skillIdList == null)
+            {
+                skillIdList = CSscriptManager.Instance.InitSkill(role.id);
+            }
+            return skillIdList;
+        }
+
+        set
+        {
+            skillIdList = value;
+        }
+    }
+
     private void Awake()
     {
         role = GetComponent<Role>();
         animator = GetComponent<Animator>();
         NotningSkillLIst = new ArrayList();
-        string path = Application.streamingAssetsPath + @"\skillconfig\RoleSkillInit.cs";
-        dynamic skillList = CSScript.Evaluator.LoadFile(path);
-        _skillIdList = skillList.skillInitMap[role.id];
+        //dynamic skillList = CSScript.Evaluator.LoadFile(path);
+        
     }
 
-    // Use this for initialization
-    void Start()
+    /// <summary>
+    /// 销毁所有技能
+    /// </summary>
+    public void SkillAllDestroy()
     {
-        foreach (int skillId in _skillIdList)
+        if (SkillIdList == null || SkillIdList.Count == 0)
+        {
+            return;
+        }
+        if (SkillMap == null || SkillMap.Count == 0)
+        {
+            return;
+        }
+        foreach (int id in SkillIdList)
+        {
+            SkillBase skill = SkillMap[id];
+            skill.Forget();
+        }
+        ClearEvent();
+    }
+
+    public void InitSkillMap()
+    {
+        SkillAllDestroy();
+        SkillIdList = CSscriptManager.Instance.InitSkill(role.ModeId);
+        if (SkillIdList == null || SkillIdList.Count == 0)
+        {
+            Debug.LogError("技能列表加载失败");
+            return;
+        }
+        foreach (int skillId in SkillIdList)
         {
             SkillBase skill = SkillManager.Instance.GetSkillById(skillId);
             if (skill != null)
             {
                 skill.Init(role);
+                //InfoManager.Instance.Add("技能对象字典初始化:" + skill.GetId());
                 SkillMap.Add(skill.GetId(), skill);
             }
+            else
+            {
+                Debug.LogError("加载技能模板失败");
+            }
         }
+    }
+
+    // Use this for initialization
+    void Start()
+    {
         
     }
 
@@ -109,7 +162,7 @@ public class SkillSystem : MonoBehaviour
     /// <returns></returns>
     public void SkillStart()
     {
-        foreach (int skillId in _skillIdList)
+        foreach (int skillId in SkillIdList)
         {
             SkillBase skill = GetSkillById(skillId);
             if (skill == null)
@@ -150,7 +203,8 @@ public class SkillSystem : MonoBehaviour
         {
             
         }
-        foreach (int skillId in _skillIdList)
+       
+        foreach (int skillId in SkillIdList)
         {
             SkillBase skill = GetSkillById(skillId);
             skill.opEffect(opCode, role, values);
@@ -166,17 +220,28 @@ public class SkillSystem : MonoBehaviour
     /// <returns></returns>
     public SkillBase GetSkillById(int skillId)
     {
+        if (SkillMap == null || SkillMap.Count == 0)
+        {
+            InitSkillMap();
+        }
+        if (!SkillMap.ContainsKey(skillId))
+        {
+            Debug.LogError(skillId + "错误的技能ID");
+            Debug.LogError(SkillMap.Count);
+            return null;
+        }
         return SkillMap[skillId];
     }
 
-    public void Use(int skillId)
+    public bool Use(int skillId)
     {
         SkillBase skill = GetSkillById(skillId);
         if (skill != null)
         {
-            Debug.Log(skill.GetName());
-            skill.Use();
+            //InfoManager.Instance.Add(skill.GetName());
+            return skill.Use();
         }
+        return false;
     }
 
     /// <summary>
@@ -184,6 +249,7 @@ public class SkillSystem : MonoBehaviour
     /// </summary>
     public void ClearEvent()
     {
+        currentId = 0;
         foreach (SkillBase skill in SkillMap.Values)
         {
             skill.ClearEvent();
@@ -213,6 +279,10 @@ public class SkillSystem : MonoBehaviour
         NotningSkillLIst.Add(skillId);
     }
 
+    /// <summary>
+    /// 删除指定的技能
+    /// </summary>
+    /// <param name="skillId"></param>
     public void DeleteNotingSkill(int skillId)
     {
         NotningSkillLIst.Remove(skillId);

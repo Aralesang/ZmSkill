@@ -8,6 +8,7 @@ using UnityEngine;
 /// </summary>
 public class Skill_TanMu : SkillBase
 {
+    private int dir = 0;//弹幕发射位置
     public override List<OpCode> GetOp(OpCode newOpCode)
     {
         return new List<OpCode> { OpCode.TanMu };
@@ -20,11 +21,12 @@ public class Skill_TanMu : SkillBase
         //技能前摇开始计时
         //StartTriggerTime();
         Start();
-        TimeNodeList.Add(new TimeNode(0.5f, Trigger));
+        TimeNodeList.Add(new TimeNode(0.1f, Fire));
+        TimeNodeList.Add(new TimeNode(0.1f, Fire));
         TimeNodeList.Add(new TimeNode(0.1f, End));
         role.MpChange(Mp);
         //animator.SetTrigger("攻击阶段1");
-        animator.Play("空中_左手出掌");
+        animator.Play("双手了连环气弹");
         //opCode = OpCode.Noth;
 
     }
@@ -35,24 +37,9 @@ public class Skill_TanMu : SkillBase
         
     }
 
-    public override float GetCd()
-    {
-        return 0;
-    }
-
-    public override int GetHp()
-    {
-        return 0;
-    }
-
     public override int GetId()
     {
         return 2;
-    }
-
-    public override int GetMp()
-    {
-        return -1;
     }
 
     public override string GetName()
@@ -66,19 +53,19 @@ public class Skill_TanMu : SkillBase
     }
 
 
-    public void Trigger()
-    {
-        Fire();
-    }
-
     /// <summary>
     /// 开火(弹幕发射)
     /// </summary>
-    public void Fire(Tanmu danmu)
+    public void Fire(Tanmu danmu,int dir)
     {
         //danmu.transform.position = gameObject.transform.position;
         //如果基础弹幕为空则无法发射,灵气消耗照常
         if (danmu == null)
+        {
+            //InfoManager.Instance.Add("没有基础弹幕");
+            return;
+        }
+        if (role.LeftHand == null)
         {
             return;
         }
@@ -86,16 +73,26 @@ public class Skill_TanMu : SkillBase
         danmu.atk = role.tanmu_atk * (danmu.multiple / 100);
         GameObject obj = GameObject.Instantiate(danmu.gameObject);
         obj.GetComponent<Tanmu>().userId = role.id;
-        obj.transform.position = role.leftHand.transform.position;
+        if (dir == 0)
+        {
+            obj.transform.position = role.RightHand.transform.position;
+            dir = 1;
+        }
+        if (dir == 1)
+        {
+            obj.transform.position = role.LeftHand.transform.position;
+            dir = 0;
+        }
         if (attackLock.target != null)
         {
             obj.transform.LookAt(attackLock.target.transform);
         }
+
     }
 
     public void Fire()
     {
-        Fire(role.baseTanmu);
+        Fire(role.baseTanmu,dir);
     }
 
     protected override bool Use_Factory()

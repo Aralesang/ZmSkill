@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 夜符：夜雀
+/// 飞行
 /// </summary>
-public class Skill_NightBird : SkillBase
-{
+public class Skill_Fly : SkillBase {
+
     //该技能是否激活
     bool active = false;
 
@@ -20,6 +19,11 @@ public class Skill_NightBird : SkillBase
     bool isUp = false;
 
     public static int SkillId = 7;
+
+    public Skill_Fly()
+    {
+        Mp = -10;
+    }
 
     public override void Effect()
     {
@@ -40,12 +44,12 @@ public class Skill_NightBird : SkillBase
 
     public override int GetId()
     {
-        return 7;
+        return 9;
     }
 
     public override string GetName()
     {
-        return "夜符【夜雀】";
+        return "飞行";
     }
 
     public override List<OpCode> GetOp(OpCode newOpCode)
@@ -106,7 +110,7 @@ public class Skill_NightBird : SkillBase
                     }
                 }
                 Vector3 v = role.transform.TransformDirection(Vector3.forward);
-            role.characterController.Move(v * Time.deltaTime * role.Speed);
+                role.characterController.Move(v * Time.deltaTime * role.Speed);
             }
             if (opCode == OpCode.Jump)
             {
@@ -132,42 +136,29 @@ public class Skill_NightBird : SkillBase
 
 
     }
-    //黑暗气息特效
-    GameObject heiObj;
 
     protected override bool Use_Factory()
     {
         if (active)
         {
-            Debug.Log("夜雀模式关闭......");
+            Debug.Log("飞行模式关闭......");
             //role.transform.position = new Vector3(role.transform.position.x, role.transform.position.y - 1, role.transform.position.z);
-            
+
             active = false;
             role.ChangeBody = false;
             role.isFly = false;
             skillSystem.DeleteNotingSkill(Skill_Move.SkillId);
-            heiObj.SetActive(false);
         }
         else
         {
-            //InfoManager.Instance.Add("夜符夜雀：宣言");
+            //InfoManager.Instance.Add("起飞");
             //role.transform.position = new Vector3(role.transform.position.x, role.transform.position.y + 1, role.transform.position.z);
             animator.Play("夜符[夜雀]");
             role.isFly = true;
             active = true;
             role.ChangeBody = true;
             skillSystem.AddNotningSkill(Skill_Move.SkillId);
-            if (heiObj == null)
-            {
-                var obj = AssetsManager.Instance.Get("黑暗气息.prefab") as GameObject;
-                heiObj = GameObject.Instantiate(obj, role.transform);
-                heiObj.transform.position = new Vector3(role.transform.position.x,0,role.transform.position.z);
-            }
-            else
-            {
-                heiObj.SetActive(true); 
-            }
-            
+
         }
         AddEvent(0.5f, End);
         return true;

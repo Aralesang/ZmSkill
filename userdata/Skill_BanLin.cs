@@ -22,6 +22,21 @@ public class Skill_BanLin : SkillBase
         Description = "身体转换为半人状态,并分离出一半成为幽灵\r\n弹幕攻击由半灵部分接管,按下弹幕攻击键后半灵会立即发射一枚弹幕，按住弹幕键1秒，半灵进入自动射击模式将持续发射弹幕,再次按键则会取消\r\n半灵分享半人部分一半灵力值";
     }
 
+    public override void Forget_Factory()
+    {
+        //InfoManager.Instance.Add("遗忘技能:" + Name);
+        if (banlin == null)
+        {
+            return;
+        }
+        //销毁半灵体
+        MonoBehaviour.Destroy(banlin);
+        //还原最大灵气值
+        role.MaxMp = role.MaxMp * 2;
+        //解除弹幕技能接管
+        skillSystem.DeleteNotingSkill(Skill_TanMu.SkillId);
+    }
+
     public override void Effect()
     {
         if (banlin == null)
@@ -60,33 +75,16 @@ public class Skill_BanLin : SkillBase
         {
             role.Mp = role.MaxMp;
         }
-        AssetBundle bundle = AssetBundle.LoadFromFile(Application.streamingAssetsPath + "/AssetBundles/魂魄妖梦.assets");
-        banlin =  GameObject.Instantiate(bundle.LoadAsset("半灵.prefab") as GameObject);
+        banlin =  AssetsManager.Instance.Get("半灵.prefab") as GameObject;
         banlin.transform.position = role.transform.position;
-        bundle.Unload(false);
         //关闭通常弹幕发射
-        skill.AddNotningSkill(Skill_TanMu.SkillId);
+        skillSystem.AddNotningSkill(Skill_TanMu.SkillId);
 
-    }
-
-    public override float GetCd()
-    {
-        return 0;
-    }
-
-    public override int GetHp()
-    {
-        return 0;
     }
 
     public override int GetId()
     {
         return 6;
-    }
-
-    public override int GetMp()
-    {
-        return 0;
     }
 
     public override string GetName()

@@ -42,25 +42,9 @@ public class Skill_Move : SkillBase
         return SkillTypeEnum.passive;
     }
 
-    public override float GetCd()
-    {
-        return 0;
-    }
-
-
     public override List<OpCode> GetOp(OpCode newOpCode)
     {
         return new List<OpCode> { OpCode.SoptMove, OpCode.Forward, OpCode.Jump, OpCode.Left, OpCode.Back, OpCode.Right };
-    }
-
-    public override int GetMp()
-    {
-        return 0;
-    }
-
-    public override int GetHp()
-    {
-        return 0;
     }
 
     protected override bool Use_Factory()
@@ -74,7 +58,7 @@ public class Skill_Move : SkillBase
         {
             MoveState = true;
             float y = 0;
-            switch (role.EquipentType)
+            switch (role.HandRightEquipentId)
             {
                 case (int)EquipmentType.noth:
                     animator.Play("奔跑");

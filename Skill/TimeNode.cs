@@ -14,13 +14,13 @@ public class TimeNode {
         this.method = method;
     }
 
-    public TimeNode(float time, Method method,bool continuity)
+    public TimeNode(float time, Method method,float continuityTime)
     {
         this.time = time;
 
         this.method = method;
 
-        this.continuity = continuity;
+        this.continuityTime = continuityTime;
     }
 
     /// <summary>
@@ -29,9 +29,9 @@ public class TimeNode {
     public float time;
 
     /// <summary>
-    /// 是否连续触发
+    /// 连续触发周期
     /// </summary>
-    public bool continuity;
+    public float continuityTime;
 
     public int Id;
 

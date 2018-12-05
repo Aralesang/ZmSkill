@@ -7,8 +7,9 @@ using UnityEngine.UI;
 public class UiSkill : UiIconBase {
     public SkillBase skill;
     public Text text;
-	// Use this for initialization
-	void Start () {
+    GameObject Instead_gameObject = null;
+    // Use this for initialization
+    void Start () {
 		
 	}
 	

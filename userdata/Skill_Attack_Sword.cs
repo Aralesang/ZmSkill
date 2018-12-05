@@ -14,7 +14,7 @@ public class Skill_Attack_Sword : SkillBase {
     /// <summary>
     /// 攻击范围追加
     /// </summary>
-    public int distance = 1;
+    public int distance = 2;
 
     /// <summary>
     /// 技能结束
@@ -23,7 +23,7 @@ public class Skill_Attack_Sword : SkillBase {
     {
         //role.GetComponent<EquipmentShow>().Reload();
         //opCode = OpCode.Noth;
-        skill.currentId = 0;
+        skillSystem.currentId = 0;
         stage = 1;
         isAdd = true;
     }
@@ -47,7 +47,7 @@ public class Skill_Attack_Sword : SkillBase {
             return false;
         }
         //如果当前有技能处于激活状态，且不是该技能，则不能激活该技能
-        if (skill.currentId > 0 && skill.currentId != GetId())
+        if (skillSystem.currentId > 0 && skillSystem.currentId != GetId())
         {
             return false;
         }
@@ -70,24 +70,10 @@ public class Skill_Attack_Sword : SkillBase {
         Description = "可以使用剑术攻击敌人\r\n使用剑系列武器时，攻击范围增加"+ distance;
     }
 
-    public override float GetCd()
-    {
-        return 0;
-    }
-
-    public override int GetHp()
-    {
-        return 0;
-    }
 
     public override int GetId()
     {
         return 5;
-    }
-
-    public override int GetMp()
-    {
-        return 0;
     }
 
     public override string GetName()
@@ -108,7 +94,7 @@ public class Skill_Attack_Sword : SkillBase {
 
     protected override void OpEffect_Factory(OpCode opCode,Role otherRole, params float[] values)
     {
-        if (role.EquipentType != (int)EquipmentType.sword)
+        if (role.HandRightEquipentId != (int)EquipmentType.sword)
         {
             return;
         }
@@ -148,9 +134,9 @@ public class Skill_Attack_Sword : SkillBase {
 
     public void Trigger()
     {
-        Role enemy = null;
+        //Role enemy = null;
         float distance = role.attackDistance + this.distance;
-        foreach (Role go in SpawnManager.Instance.enemyList)
+        foreach (Role go in RoleManager.Instance.RoleMap.Values)
         {
             if (go.Group == role.Group)
             {
@@ -159,17 +145,16 @@ public class Skill_Attack_Sword : SkillBase {
             float temp = Vector3.Distance(go.transform.position, role.transform.position);
             if (temp <= distance)
             {
-                enemy = go;
-                distance = temp;
+                Vector3 targetPos = go.transform.position;
+                targetPos.y = role.transform.position.y;
+                role.transform.LookAt(targetPos);
+                go.GetComponent<SkillSystem>().AddOp(OpCode.Demage, role, (int)role.atk, stage == 3 ? (int)KoType.KNOCK_DOWN : (int)KoType.STIFF);
             }
         }
-        if (enemy != null)
-        {
-            Vector3 targetPos = enemy.transform.position;
-            targetPos.y = role.transform.position.y;
-            role.transform.LookAt(targetPos);
-            enemy.GetComponent<SkillSystem>().AddOp(OpCode.Demage,role, (int)role.atk, stage == 3 ? (int)KoType.KNOCK_DOWN : (int)KoType.STIFF);
-        }
+        //if (enemy != null)
+        //{
+            
+        //}
     }
 
     protected override bool Use_Factory()

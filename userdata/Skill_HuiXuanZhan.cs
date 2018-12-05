@@ -30,24 +30,9 @@ public class Skill_HuiXuanZhan : SkillBase
         
     }
 
-    public override float GetCd()
-    {
-        return 0;
-    }
-
-    public override int GetHp()
-    {
-        return 0;
-    }
-
     public override int GetId()
     {
         return 4;
-    }
-
-    public override int GetMp()
-    {
-        return 0;
     }
 
     public override string GetName()
@@ -68,7 +53,7 @@ public class Skill_HuiXuanZhan : SkillBase
 
     protected override void OpEffect_Factory(OpCode opCode,Role otherRole, params float[] values)
     {
-        throw new NotImplementedException();
+
     }
 
 
@@ -79,7 +64,7 @@ public class Skill_HuiXuanZhan : SkillBase
     {
         Role enemy = null;
         float distance = role.attackDistance;
-        foreach (Role go in SpawnManager.Instance.enemyList)
+        foreach (Role go in RoleManager.Instance.RoleMap.Values)
         {
             if (go.Group == role.Group)
             {
@@ -113,7 +98,7 @@ public class Skill_HuiXuanZhan : SkillBase
         float distance = role.attackDistance + dican;
 
         List<Role> enemys = new List<Role>();
-        foreach (Role go in SpawnManager.Instance.enemyList)
+        foreach (Role go in RoleManager.Instance.RoleMap.Values)
         {
             if (go.Group == role.Group)
             {
@@ -148,13 +133,13 @@ public class Skill_HuiXuanZhan : SkillBase
             return false;
         }
         //如果当前有技能处于激活状态，则不能激活该技能
-        if (skill.currentId > 0)
+        if (skillSystem.currentId > 0)
         {
             Debug.Log("有其他技能激活");
             return false;
         }
 
-        if (role.EquipentType != (int)EquipmentType.sword)
+        if (role.HandRightEquipentId != (int)EquipmentType.sword)
         {
             Debug.Log("必须装备剑才可以施展");
             return false;
@@ -174,9 +159,9 @@ public class Skill_HuiXuanZhan : SkillBase
         //Debug.Log("回旋斩！");
         Start();
         animator.Play("生死流转斩");
-        TimeNodeList.Add(new TimeNode(0.5f,One));
-        TimeNodeList.Add(new TimeNode(1f, Two));
-        TimeNodeList.Add(new TimeNode(0.3f, End));
+        AddEvent(0.5f,One);
+        AddEvent(1f, Two);
+        AddEvent(0.3f, End);
         return true;
     }
 

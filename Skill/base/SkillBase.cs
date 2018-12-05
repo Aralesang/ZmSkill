@@ -36,6 +36,12 @@ public abstract class SkillBase
     public int Id = 0;
 
     /// <summary>
+    /// 技能等级，技能属性会根据成长控制函数决定变化
+    /// 测试阶段默认每一个等级增加一倍
+    /// </summary>
+    public int Level = 100;
+
+    /// <summary>
     /// 技能类型:0:主动技能(可以主动按键施展的技能) 1:被动技能(不可以主动施展,但达成条件时会自动施展的技能)
     /// (目前未准备混合型技能，可以通过设置一个主动一个被动来得到效果，混合技能意义不大)
     /// </summary>
@@ -75,7 +81,7 @@ public abstract class SkillBase
     /// <summary>
     /// 技能系统
     /// </summary>
-    public SkillSystem skill;
+    public SkillSystem skillSystem;
 
     /// <summary>
     /// 战斗锁定系统的引用
@@ -116,7 +122,7 @@ public abstract class SkillBase
         
         if (!Effect_Limit_Factory())
         {
-            Debug.Log("发动失败");
+            //InfoManager.Instance.Add(Name + "发动失败");
             return false;
         }
         
@@ -147,19 +153,17 @@ public abstract class SkillBase
         {
             TimeNode timeNode = TimeNodeList[0];
             timeNode.time = timeNode.time - Time.deltaTime;
-
-            if (timeNode.continuity)
+            //技能前摇倒计时为0，技能开始触发
+            if (timeNode.time <= 0)
             {
                 timeNode.method();
-                if (timeNode.time <= 0)
+                timeNode.continuityTime = timeNode.continuityTime - Time.deltaTime;
+                //持续触发周期，如果该
+                if (timeNode.continuityTime < 0)
                 {
                     TimeNodeList.RemoveAt(0);
                 }
-            }
-            else if (timeNode.time <= 0)
-            {
-                timeNode.method();
-                TimeNodeList.RemoveAt(0);
+                
             }
         }
         //role.soul.SkillPerception(this);
@@ -169,7 +173,7 @@ public abstract class SkillBase
 
     public virtual bool Effect_Limit_Factory()
     {
-        if (skill.NotningSkillLIst.Contains(GetId()))
+        if (skillSystem.NotningSkillLIst.Contains(GetId()))
         {
             //Debug.Log(GetName()+"已被禁止");
             return false;
@@ -192,7 +196,7 @@ public abstract class SkillBase
             return false;
         }
         //如果当前有技能处于激活状态，则不能激活该技能
-        if (skill.currentId > 0 && skill.currentId != GetCd())
+        if (skillSystem.currentId > 0 && skillSystem.currentId != Cd)
         {
             return false;
         }
@@ -225,7 +229,7 @@ public abstract class SkillBase
     public void Start()
     {
         ClearEvent();
-        skill.currentId = this.GetId();
+        skillSystem.currentId = this.GetId();
     }
 
     /// <summary>
@@ -235,7 +239,7 @@ public abstract class SkillBase
     {
         equipmentShow.Reload();
         //opCode = OpCode.Noth;
-        skill.currentId = 0;
+        skillSystem.currentId = 0;
         //Debug.Log("技能结束");
     }
 
@@ -245,10 +249,7 @@ public abstract class SkillBase
     {
         this.Name = GetName();
         this.Id = GetId();
-        this.Cd = GetCd();
         this.SkillType = GetSkillType();
-        this.Hp = GetHp();
-        this.Mp = GetMp();
     }
 
     /// <summary>
@@ -258,13 +259,10 @@ public abstract class SkillBase
     {
         this.role = role;
         this.animator = role.GetComponent<Animator>();
-        this.skill = role.GetComponent<SkillSystem>();
+        this.skillSystem = role.GetComponent<SkillSystem>();
         this.Name = GetName();
         this.Id = GetId();
-        this.Cd = GetCd();
         this.SkillType = GetSkillType();
-        this.Hp = GetHp();
-        this.Mp = GetMp();
         this.attackLock = role.GetComponent<AttackLock>();
         this.equipmentShow = role.GetComponent<EquipmentShow>();
         this.TimeNodeList = new List<TimeNode>();
@@ -302,11 +300,6 @@ public abstract class SkillBase
     /// <returns></returns>
     public abstract SkillTypeEnum GetSkillType();
 
-    /// <summary>
-    /// 获取技能冷却
-    /// </summary>
-    /// <returns></returns>
-    public abstract float GetCd();
 
     public void AddOp(OpCode newOpCod, params float[] values)
     {
@@ -343,10 +336,6 @@ public abstract class SkillBase
     /// 返回一个指令组，表示可以接受的指令
     /// </summary>
     public abstract List<OpCode> GetOp(OpCode newOpCode);
-
-    public abstract int GetMp();
-
-    public abstract int GetHp();
 
     /// <summary>
     /// 检查血蓝是否足够消耗
@@ -393,9 +382,9 @@ public abstract class SkillBase
         return icon;
     }
 
-    public void AddEvent(float time, TimeNode.Method timeEvent, bool continuity)
+    public void AddEvent(float time, TimeNode.Method timeEvent, float continuityTime)
     {
-        TimeNode t = new TimeNode(time, timeEvent, continuity);
+        TimeNode t = new TimeNode(time, timeEvent, continuityTime);
         t.Id = TimeNodeList.Count;
         TimeNodeList.Add(t);
     }
@@ -407,7 +396,7 @@ public abstract class SkillBase
     /// <param name="timeEvent">要触发的方法</param>
     public void AddEvent(float time, TimeNode.Method timeEvent)
     {
-        AddEvent(time, timeEvent,false);
+        AddEvent(time, timeEvent,0);
     }
 
     /// <summary>
@@ -421,12 +410,34 @@ public abstract class SkillBase
 
     protected abstract void OpEffect_Factory(OpCode opCode, Role otherRole, params float[] values);
 
-
+    /// <summary>
+    /// 技能对象复制
+    /// </summary>
+    /// <returns></returns>
     public SkillBase Clone()
     {
         //return this as object;      //引用同一个对象
         return this.MemberwiseClone() as SkillBase; //浅复制
         //return new DrawBase() as SkillBase;//深复制
+    }
+
+    /// <summary>
+    /// 技能遗忘:将技能从技能系统中清除，并销毁所有技能所产生的特效和对象
+    /// </summary>
+    public void Forget()
+    {
+        Forget_Factory();
+        //销毁技能队列
+        
+        //删除技能
+        skillSystem.SkillMap.Remove(Id);
+    }
+
+    /// <summary>
+    /// 技能遗忘自定义部分，用于各自技能的遗忘处理
+    /// </summary>
+    public virtual void Forget_Factory()
+    {
     }
 
 }

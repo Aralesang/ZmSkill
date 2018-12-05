@@ -29,10 +29,9 @@ public class Skill_Attack : SkillBase
     {
         //role.GetComponent<EquipmentShow>().Reload();
         //opCode = OpCode.Noth;
-        skill.currentId = 0;
+        skillSystem.currentId = 0;
         stage = 1;
         isAdd = true;
-        Debug.Log("普通攻击结束");
     }
 
     public override bool Effect_Limit()
@@ -55,7 +54,7 @@ public class Skill_Attack : SkillBase
             return false;
         }
         //如果当前有技能处于激活状态，且不是该技能，则不能激活该技能
-        if (skill.currentId > 0 && skill.currentId != GetId())
+        if (skillSystem.currentId > 0 && skillSystem.currentId != GetId())
         {
             return false;
         }
@@ -79,10 +78,6 @@ public class Skill_Attack : SkillBase
 
     }
 
-    public override float GetCd()
-    {
-        return 0;
-    }
 
     public override int GetId()
     {
@@ -99,21 +94,12 @@ public class Skill_Attack : SkillBase
         return SkillTypeEnum.passive;
     }
 
-    public override int GetMp()
-    {
-        return 0;
-    }
-
-    public override int GetHp()
-    {
-        return 0;
-    }
 
     public void Trigger()
     {
         Role enemy = null;
         float distance = role.attackDistance;
-        foreach (Role go in SpawnManager.Instance.enemyList)
+        foreach (Role go in RoleManager.Instance.RoleList)
         {
             if (go.Group == role.Group)
             {
@@ -131,7 +117,11 @@ public class Skill_Attack : SkillBase
             Vector3 targetPos = enemy.transform.position;
             targetPos.y = role.transform.position.y;
             role.transform.LookAt(targetPos);
-            enemy.GetComponent<SkillSystem>().AddOp(OpCode.Demage,role, (int)role.atk,stage == 3 ? (int)KoType.FLOWN : (int)KoType.STIFF);
+            enemy.GetComponent<SkillSystem>().AddOp(OpCode.Demage, role, (int)role.atk * Level, stage == 3 ? (int)KoType.FLOWN : (int)KoType.STIFF);
+        }
+        else
+        {
+            Debug.Log("未命中");
         }
 
     }
@@ -152,7 +142,7 @@ public class Skill_Attack : SkillBase
 
     protected override void OpEffect_Factory(OpCode opCode,Role otherRole, params float[] values)
     {
-        if (role.EquipentType != (int)EquipmentType.noth)
+        if (role.HandRightEquipentId != (int)EquipmentType.noth)
         {
             return;
         }

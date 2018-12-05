@@ -65,25 +65,9 @@ public class Skill_Demage : SkillBase
 
     }
 
-    public override float GetCd()
-    {
-        return 0;
-    }
-
-
-    public override int GetHp()
-    {
-        return 0;
-    }
-
     public override int GetId()
     {
         return 3;
-    }
-
-    public override int GetMp()
-    {
-        return 0;
     }
 
     public override string GetName()
@@ -125,12 +109,7 @@ public class Skill_Demage : SkillBase
         }
         if (hitObj == null)
         {
-            AssetBundle bundle = AssetBundle.LoadFromFile(Application.streamingAssetsPath + "/AssetBundles/hitmonster.assets");
-            hitObj = bundle.LoadAsset("HitMonster.prefab") as GameObject;
-            
-            //bundle.Unload(false);
-            //hitObj = (GameObject)AssetDatabase.LoadAssetAtPath(@"Assets\Prefabs\特效\HitMonster.prefab", typeof(GameObject));
-            bundle.Unload(false);
+            hitObj = AssetsManager.Instance.Get("hitmonster.prefab") as GameObject;
         }
         demage = (int)values[0];
         //是否击飞
@@ -167,6 +146,7 @@ public class Skill_Demage : SkillBase
         //Debug.Log("转向："+ rota);
         GameObject obj = GameObject.Instantiate(hitObj, point, role.transform.rotation);
         GameObject.Destroy(obj, 1);
+        //InfoManager.Instance.Add(role.Name + "受到" + demage + "点伤害");
         Debug.Log(role.Name + "受到" + demage + "点伤害");
         role.HpChange(-demage);
         
@@ -177,7 +157,8 @@ public class Skill_Demage : SkillBase
         {
             Start();
             this.ClearEvent();
-            AddEvent(0.5f, Flown, true);
+            animator.Play("击飞");
+            AddEvent(0, Flown, 0.5f);
             AddEvent(2f,Flown_Up);
             AddEvent(2, End);
         }
@@ -185,7 +166,8 @@ public class Skill_Demage : SkillBase
         {
             Start();
             this.ClearEvent();
-            AddEvent(0.5f, Down, true);
+            animator.Play("击倒");
+            AddEvent(0.5f, Down, 0.5f);
             AddEvent(2f, Down_Up);
             AddEvent(2, End);
         }
@@ -204,7 +186,6 @@ public class Skill_Demage : SkillBase
     public void Flown()
     {
         role.transform.Translate(Vector3.back * Time.deltaTime * 4F);
-        animator.Play("击飞");
     }
 
     /// <summary>
@@ -213,7 +194,6 @@ public class Skill_Demage : SkillBase
     public void Down()
     {
         role.transform.Translate(Vector3.back * Time.deltaTime * 4f);
-        animator.Play("击倒");
     }
 
     /// <summary>
