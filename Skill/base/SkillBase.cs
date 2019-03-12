@@ -79,11 +79,6 @@ public abstract class SkillBase
     public Role role;
 
     /// <summary>
-    /// 发动者灵魂
-    /// </summary>
-    public Soul soul;
-
-    /// <summary>
     /// 技能系统
     /// </summary>
     public SkillSystem skillSystem;
@@ -97,11 +92,6 @@ public abstract class SkillBase
     /// 技能描述
     /// </summary>
     public string Description { get; set; }
-
-    /// <summary>
-    /// 装备动作外观变化系统
-    /// </summary>
-    public EquipmentShow equipmentShow;
 
     /// <summary>
     /// 时间节点集合
@@ -235,8 +225,6 @@ public abstract class SkillBase
         this.Start();
         role.MpChange(Mp);
         role.HpChange(Hp);
-        role.EpChange(Ep);
-        role.soul.SkillPerception(this,values);
         oldtime = Time.time;
         this.Use_Factory(values);
         Active = true;
@@ -402,7 +390,7 @@ public abstract class SkillBase
     /// </summary>
     public virtual void End()
     {
-        equipmentShow.Reload();
+        role.animator.Play("待机");
         //opCode = OpCode.Noth;
         skillSystem.activeId = 0;
         Active = false;
@@ -430,12 +418,10 @@ public abstract class SkillBase
     public void Init(Role role)
     {
         this.role = role;
-        this.soul = role.GetComponent<Soul>();
         this.skillSystem = role.GetComponent<SkillSystem>();
         this.Name = GetName();
         this.id = GetId();
         this.SkillType = SkillTypeEnum.active;
-        this.equipmentShow = role.GetComponent<EquipmentShow>();
         this.TimeNodeList = new List<TimeNode>();
         Effect_Init();
 
@@ -489,12 +475,6 @@ public abstract class SkillBase
         if (Hp < 0 && role.hp < Math.Abs(Hp))
         {
             Debug.Log("体力不足");
-            return false;
-        }
-
-        if (Ep < 0 && role.ep < Math.Abs(Ep))
-        {
-            Debug.Log("耐力不足");
             return false;
         }
 
