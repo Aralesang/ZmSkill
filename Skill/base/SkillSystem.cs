@@ -1,7 +1,8 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
+using CSScriptLibrary;
 using UnityEngine;
+using Photon.Pun;
 
 /// <summary>
 /// 技能系统(每个对象都拥有属于自己的技能系统)
@@ -29,6 +30,15 @@ public class SkillSystem : MonoBehaviour
     /// </summary>
     public int activeId = 0;
     Role role;
+    /// <summary>
+    /// 操作码集合
+    /// </summary>
+    public Queue<OpCode> opCodes = new Queue<OpCode>();
+
+    Animator animator;
+
+
+    /// <summary>
     /// 被禁止的技能列表
     /// </summary>
     public ArrayList NotningSkillLIst = new ArrayList();
@@ -67,7 +77,9 @@ public class SkillSystem : MonoBehaviour
 
     private void Awake()
     {
-        
+        role = GetComponent<Role>();
+        animator = GetComponent<Animator>();
+        NotningSkillLIst = new ArrayList();
         //dynamic skillList = CSScript.Evaluator.LoadFile(path);
         
     }
@@ -129,13 +141,19 @@ public class SkillSystem : MonoBehaviour
     public void InitSkillMap()
     {
         SkillAllRemove();
-        
-        foreach (int skillId in Enum.GetValues(typeof(SkillId)))
+        List<int> SkillIdList = CSscriptManager.Instance.InitSkill(role.ModeId);
+        if (SkillIdList == null || SkillIdList.Count == 0)
+        {
+            Debug.LogError("技能列表加载失败");
+            return;
+        }
+        foreach (int skillId in SkillIdList)
         {
             SkillBase skill = SkillManager.Instance.GetSkillById(skillId);
             if (skill != null)
             {
                 skill.Init(role);
+                //Debug.Log("技能对象字典初始化:" + skill.GetName());
                 SkillMap.Add(skill.GetId(), skill);
             }
             else
@@ -148,9 +166,7 @@ public class SkillSystem : MonoBehaviour
     // Use this for initialization
     void Start()
     {
-        role = GetComponent<Role>();
-        NotningSkillLIst = new ArrayList();
-        InitSkillMap();
+        
     }
 
     /// <summary>
@@ -268,6 +284,7 @@ public class SkillSystem : MonoBehaviour
     /// <param name="targetRole">目标角色</param>
     /// <param name="values">参数列表</param>
     /// <returns></returns>
+    [PunRPC]
     public bool Use(int skillId,params object[] values)
     {
         SkillBase skill = GetSkillById(skillId);
