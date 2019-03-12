@@ -32,30 +32,13 @@ public class Skill_HuiXuanZhan : SkillBase
 
     public override int GetId()
     {
-        return 4;
+        return (int)SkillId.HuiXuanZhan;
     }
 
     public override string GetName()
     {
         return "生死流转斩";
     }
-
-    public override List<OpCode> GetOp(OpCode newOpCode)
-    {
-        return null;
-    }
-
-    public override SkillTypeEnum GetSkillType()
-    {
-        return SkillTypeEnum.active;
-    }
-
-
-    protected override void OpEffect_Factory(OpCode opCode,Role otherRole, params float[] values)
-    {
-
-    }
-
 
     /// <summary>
     /// 第一击
@@ -86,7 +69,7 @@ public class Skill_HuiXuanZhan : SkillBase
             Vector3 targetPos = enemy.transform.position;
             targetPos.y = role.transform.position.y;
             role.transform.LookAt(targetPos);
-            enemy.GetComponent<SkillSystem>().AddOp(OpCode.Demage, role, (int)role.atk, (int)KoType.STIFF);
+            enemy.GetComponent<SkillSystem>().Use((int)SkillId.Demage, role, (int)role.Physical_Atk, (int)KoType.STIFF);
         }
     }
 
@@ -121,7 +104,7 @@ public class Skill_HuiXuanZhan : SkillBase
             targetPos.y = role.transform.position.y;
             role.transform.LookAt(targetPos);
             SkillSystem skill = enemy.GetComponent<SkillSystem>();
-            skill.AddOp(OpCode.Demage,role, (int)(role.atk * atk2), (int)KoType.KNOCK_DOWN);
+            skill.Use((int)SkillId.Demage,role,(int)(role.Physical_Atk * atk2), (int)KoType.KNOCK_DOWN);
         }
     }
 
@@ -133,13 +116,13 @@ public class Skill_HuiXuanZhan : SkillBase
             return false;
         }
         //如果当前有技能处于激活状态，则不能激活该技能
-        if (skillSystem.currentId > 0)
+        if (skillSystem.activeId > 0)
         {
             Debug.Log("有其他技能激活");
             return false;
         }
 
-        if (role.HandRightEquipentId != (int)EquipmentType.sword)
+        if (role.WeaponId != (int)EquipmentType.sword)
         {
             Debug.Log("必须装备剑才可以施展");
             return false;
@@ -154,11 +137,10 @@ public class Skill_HuiXuanZhan : SkillBase
         return true;
     }
 
-    protected override bool Use_Factory()
+    protected override bool Use_Factory(params object[] values)
     {
         //Debug.Log("回旋斩！");
-        Start();
-        animator.Play("生死流转斩");
+        soul.PlayAnimator("生死流转斩");
         AddEvent(0.5f,One);
         AddEvent(1f, Two);
         AddEvent(0.3f, End);

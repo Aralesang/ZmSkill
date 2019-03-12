@@ -12,14 +12,18 @@ public class Skill_Attack : SkillBase
 
     bool isAdd = true;//是否可以进行攻击追加(多段连锁的间隔
 
-    public override List<OpCode> GetOp(OpCode newOpCode)
-    {
-        return new List<OpCode> { OpCode.Attack };
-    }
+    int addPwoer = 1; //每一级增加的力量数量
 
     public Skill_Attack()
     {
-        Description = "空手时使用拳头进行攻击\r\n使用拳头作战可以更快提升基础体术攻击力";
+        Description = "连按攻击键可以使出连续的左右拳，停止攻击后会使用一记高踢腿进行收尾";
+        DoubleActive = true;
+        Level = 1;
+    }
+
+    public override void Effect_Init()
+    {
+        role.Power += Level * addPwoer;
     }
 
     /// <summary>
@@ -29,17 +33,21 @@ public class Skill_Attack : SkillBase
     {
         //role.GetComponent<EquipmentShow>().Reload();
         //opCode = OpCode.Noth;
-        skillSystem.currentId = 0;
+        skillSystem.activeId = 0;
         stage = 1;
         isAdd = true;
     }
 
     public override bool Effect_Limit()
     {
-        //达到第三阶段后不能继续追加攻击
-        if (stage > 3)
+        if (role.WeaponId != (int)EquipmentType.noth)
         {
             return false;
+        }
+        //达到第三阶段后不能继续追加攻击
+        if (stage > 2)
+        {
+            stage = 1;
         }
 
         //不允许追加攻击的阶段不接受操作
@@ -47,30 +55,7 @@ public class Skill_Attack : SkillBase
         {
             return false;
         }
-
-        //玩家死亡状态下不触发技能
-        if (role.isSurvive == 1)
-        {
-            return false;
-        }
-        //如果当前有技能处于激活状态，且不是该技能，则不能激活该技能
-        if (skillSystem.currentId > 0 && skillSystem.currentId != GetId())
-        {
-            return false;
-        }
-
-        //需要消耗的值不足
-        if (!CheckConsume())
-        {
-            return false;
-        }
-
-        //if (opCode > OpCode.Noth)
-        //{
-
         return true;
-        //}
-        //return false;
     }
 
     public override void Effect()
@@ -81,7 +66,7 @@ public class Skill_Attack : SkillBase
 
     public override int GetId()
     {
-        return 8;
+        return (int)SkillId.Attack;
     }
 
     public override string GetName()
@@ -89,19 +74,17 @@ public class Skill_Attack : SkillBase
         return "格斗精通";
     }
 
-    public override SkillTypeEnum GetSkillType()
-    {
-        return SkillTypeEnum.passive;
-    }
-
-
     public void Trigger()
     {
         Role enemy = null;
         float distance = role.attackDistance;
-        foreach (Role go in RoleManager.Instance.RoleList)
+        foreach (Role go in RoleManager.Instance.RoleMap.Values)
         {
             if (go.Group == role.Group)
+            {
+                continue;
+            }
+            if (go.isSurvive == 1)
             {
                 continue;
             }
@@ -117,18 +100,44 @@ public class Skill_Attack : SkillBase
             Vector3 targetPos = enemy.transform.position;
             targetPos.y = role.transform.position.y;
             role.transform.LookAt(targetPos);
-            enemy.GetComponent<SkillSystem>().AddOp(OpCode.Demage, role, (int)role.atk * Level, stage == 3 ? (int)KoType.FLOWN : (int)KoType.STIFF);
+            enemy.soul.Demage(role,1,role.Physical_Atk);
         }
         else
         {
-            Debug.Log("未命中");
+            //Debug.Log("未命中");
         }
 
     }
 
-    protected override bool Use_Factory()
+    protected override bool Use_Factory(params object[] values)
     {
+ 
+        isAdd = false;
+
+        switch (stage)
+        {
+            case 1:
+                soul.PlayAnimator("右直拳");
+                TimeNodeList.Add(new TimeNode(0.2f, Trigger));
+                TimeNodeList.Add(new TimeNode(0.2f, AddStage));
+                TimeNodeList.Add(new TimeNode(0.2f, Last));
+                break;
+            case 2:
+                soul.PlayAnimator("左直拳");
+                TimeNodeList.Add(new TimeNode(0.2f, Trigger));
+                TimeNodeList.Add(new TimeNode(0.2f, AddStage));
+                TimeNodeList.Add(new TimeNode(0.2f, Last));
+                break;
+        }
+
         return true;
+    }
+
+    void Last()
+    {
+        soul.PlayAnimator("高踢(右)");
+        TimeNodeList.Add(new TimeNode(0.2f, Trigger));
+        TimeNodeList.Add(new TimeNode(1f, End));
     }
 
     /// <summary>
@@ -138,43 +147,6 @@ public class Skill_Attack : SkillBase
     {
         stage++;
         isAdd = true;
-    }
-
-    protected override void OpEffect_Factory(OpCode opCode,Role otherRole, params float[] values)
-    {
-        if (role.HandRightEquipentId != (int)EquipmentType.noth)
-        {
-            return;
-        }
-        isAdd = false;
-        Start();
-        if (!CheckConsume())
-        {
-            Debug.Log("MP不足");
-            opCode = OpCode.Noth;
-            return;
-        }
-
-        switch (stage)
-        {
-            case 1:
-                animator.Play("右直拳");
-                TimeNodeList.Add(new TimeNode(0.3f, Trigger));
-                TimeNodeList.Add(new TimeNode(0.4f, AddStage));
-                TimeNodeList.Add(new TimeNode(0.5f, End));
-                break;
-            case 2:
-                animator.Play("左直拳");
-                TimeNodeList.Add(new TimeNode(0.3f, Trigger));
-                TimeNodeList.Add(new TimeNode(0.4f, AddStage));
-                TimeNodeList.Add(new TimeNode(0.5f, End));
-                break;
-            case 3:
-                animator.Play("高踢(右)");
-                TimeNodeList.Add(new TimeNode(0.3f, Trigger));
-                TimeNodeList.Add(new TimeNode(1f, End));
-                break;
-        }
     }
 }
 

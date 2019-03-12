@@ -9,28 +9,13 @@ using UnityEngine;
 public class Skill_TanMu : SkillBase
 {
     private int dir = 0;//弹幕发射位置
-    public override List<OpCode> GetOp(OpCode newOpCode)
+
+    public Skill_TanMu()
     {
-        return new List<OpCode> { OpCode.TanMu };
+        DoubleActive = true;
+        Cd = 0.25f;
+        Mp = -1;
     }
-
-    public static int SkillId = 2;
-
-    protected override void OpEffect_Factory(OpCode opCode,Role otherRole, params float[] values)
-    {
-        //技能前摇开始计时
-        //StartTriggerTime();
-        Start();
-        TimeNodeList.Add(new TimeNode(0.1f, Fire));
-        TimeNodeList.Add(new TimeNode(0.1f, Fire));
-        TimeNodeList.Add(new TimeNode(0.1f, End));
-        role.MpChange(Mp);
-        //animator.SetTrigger("攻击阶段1");
-        animator.Play("双手了连环气弹");
-        //opCode = OpCode.Noth;
-
-    }
-
     public override void Effect()
     {
         
@@ -39,17 +24,12 @@ public class Skill_TanMu : SkillBase
 
     public override int GetId()
     {
-        return 2;
+        return (int)SkillId.TanMu;
     }
 
     public override string GetName()
     {
         return "弹幕";
-    }
-
-    public override SkillTypeEnum GetSkillType()
-    {
-        return SkillTypeEnum.passive;
     }
 
 
@@ -70,9 +50,10 @@ public class Skill_TanMu : SkillBase
             return;
         }
         //弹幕攻击力算法公式（玩家基础弹幕攻击力 * 弹幕技能攻击比率）
-        danmu.atk = role.tanmu_atk * (danmu.multiple / 100);
+        danmu.atk = role.Tanmu_atk * (danmu.multiple / 100);
         GameObject obj = GameObject.Instantiate(danmu.gameObject);
         obj.GetComponent<Tanmu>().userId = role.id;
+        obj.transform.rotation = role.transform.rotation;
         if (dir == 0)
         {
             obj.transform.position = role.RightHand.transform.position;
@@ -83,9 +64,9 @@ public class Skill_TanMu : SkillBase
             obj.transform.position = role.LeftHand.transform.position;
             dir = 0;
         }
-        if (attackLock.target != null)
+        if (role.Target != null)
         {
-            obj.transform.LookAt(attackLock.target.transform);
+            obj.transform.LookAt(role.Target.transform);
         }
 
     }
@@ -94,9 +75,20 @@ public class Skill_TanMu : SkillBase
     {
         Fire(role.baseTanmu,dir);
     }
-
-    protected override bool Use_Factory()
+    
+    protected override bool Use_Factory(params object[] values)
     {
+        //技能前摇开始计时
+        //StartTriggerTime();
+        TimeNodeList.Add(new TimeNode(0.1f, Fire));
+        TimeNodeList.Add(new TimeNode(0.1f, Fire));
+        TimeNodeList.Add(new TimeNode(0.1f, End));
+        role.MpChange(Mp);
+
+        //animator.SetTrigger("攻击阶段1");
+        soul.PlayAnimator("双手了连环气弹");
+        role.soul.LookTarget();
+        //opCode = OpCode.Noth;
         return true;
     }
 }

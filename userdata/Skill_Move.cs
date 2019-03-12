@@ -15,6 +15,12 @@ public class Skill_Move : SkillBase
 
     public bool MoveState = false;
 
+    public Skill_Move()
+    {
+        DoubleActive = true;
+        BeAllCancel = true;
+    }
+
     private void Awake()
     {
 
@@ -30,74 +36,64 @@ public class Skill_Move : SkillBase
         return "移动";
     }
 
-    public static int SkillId = 1;
 
     public override int GetId()
     {
-        return 1;
+        return (int)SkillId.Move;
     }
 
-    public override SkillTypeEnum GetSkillType()
+    protected override bool Use_Factory(params object[] values)
     {
-        return SkillTypeEnum.passive;
-    }
-
-    public override List<OpCode> GetOp(OpCode newOpCode)
-    {
-        return new List<OpCode> { OpCode.SoptMove, OpCode.Forward, OpCode.Jump, OpCode.Left, OpCode.Back, OpCode.Right };
-    }
-
-    protected override bool Use_Factory()
-    {
-        return true;
-    }
-
-    protected override void OpEffect_Factory(OpCode opCode, Role otherRole, params float[] values)
-    {
-        if (opCode == OpCode.Forward || opCode == OpCode.Back || opCode == OpCode.Left || opCode == OpCode.Right)
+        
+        int opCode = (int)values[0];
+        if (opCode == (int)OpCode.Forward || opCode == (int)OpCode.Back || opCode == (int)OpCode.Left || opCode == (int)OpCode.Right)
         {
             MoveState = true;
             float y = 0;
-            switch (role.HandRightEquipentId)
+            switch (role.WeaponId)
             {
                 case (int)EquipmentType.noth:
-                    animator.Play("奔跑");
+                    soul.PlayAnimator("奔跑");
                     break;
                 case (int)EquipmentType.sword:
-                    animator.Play("奔跑_剑");
+                    soul.PlayAnimator("奔跑_剑");
                     break;
             }
-            if (role.isLocalPlayer)
+            if (role.photonView != null && role.photonView.IsMine)
             {
-                y = Camera.main.transform.rotation.eulerAngles.y;
-                if (opCode == OpCode.Forward)
+                if (role.isLocalPlayer)
                 {
-                    role.transform.rotation = Quaternion.Euler(0, y, 0);
-                }
-                if (opCode == OpCode.Back)
-                {
-                    role.transform.rotation = Quaternion.Euler(0, y + 180, 0);
+                    y = Camera.main.transform.rotation.eulerAngles.y;
+                    if (opCode == (int)OpCode.Forward)
+                    {
+                        role.transform.rotation = Quaternion.Euler(0, y, 0);
+                    }
+                    if (opCode == (int)OpCode.Back)
+                    {
+                        role.transform.rotation = Quaternion.Euler(0, y + 180, 0);
+                    }
+
+                    if (opCode == (int)OpCode.Left)
+                    {
+                        role.transform.rotation = Quaternion.Euler(0, y - 90, 0);
+                    }
+                    if (opCode == (int)OpCode.Right)
+                    {
+                        role.transform.rotation = Quaternion.Euler(0, y + 90, 0);
+                    }
                 }
 
-                if (opCode == OpCode.Left)
-                {
-                    role.transform.rotation = Quaternion.Euler(0, y - 90, 0);
-                }
-                if (opCode == OpCode.Right)
-                {
-                    role.transform.rotation = Quaternion.Euler(0, y + 90, 0);
-                }
+                Vector3 v = role.transform.TransformDirection(Vector3.forward);
+                role.characterController.Move(v * Time.deltaTime * role.Speed);
             }
             
-            Vector3 v = role.transform.TransformDirection(Vector3.forward);
-            role.characterController.Move(v * Time.deltaTime * role.Speed);
         }
-        if (opCode == OpCode.SoptMove)
+        if (opCode == (int)OpCode.SoptMove)
         {
             Stop();
         }
+        return true;
     }
-
     /// <summary>
     /// 停止移动
     /// </summary>

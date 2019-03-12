@@ -7,7 +7,8 @@ using UnityEngine.UI;
 public class UiSkill : UiIconBase {
     public SkillBase skill;
     public Text text;
-    GameObject Instead_gameObject = null;
+    //技能等级
+    public Text level;
     // Use this for initialization
     void Start () {
 		
@@ -15,7 +16,7 @@ public class UiSkill : UiIconBase {
 	
 	// Update is called once per frame
 	void Update () {
-		
+        level.text = skill.Level.ToString();
 	}
 
 
@@ -34,8 +35,8 @@ public class UiSkill : UiIconBase {
         }
     }
 
-    public override void Use()
+    public override void Use(Role otherRole, params float[] values)
     {
-        skill.Use();
+        skill.Use(otherRole,values);
     }
 }

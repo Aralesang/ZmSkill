@@ -5,7 +5,8 @@ using UnityEngine;
 /// <summary>
 /// 飞行
 /// </summary>
-public class Skill_Fly : SkillBase {
+public class Skill_Fly : SkillBase
+{
 
     //该技能是否激活
     bool active = false;
@@ -18,7 +19,6 @@ public class Skill_Fly : SkillBase {
     //是否处于上下移动模式
     bool isUp = false;
 
-    public static int SkillId = 7;
 
     public Skill_Fly()
     {
@@ -27,15 +27,16 @@ public class Skill_Fly : SkillBase {
 
     public override void Effect()
     {
-        if (!Effect_Limit())
-        {
-            return;
-        }
+        
         if (active)
         {
+            if (!Effect_Limit())
+            {
+                return;
+            }
             if (!isMove)
             {
-                animator.Play("漂浮");
+                soul.PlayAnimator("漂浮");
             }
             isMove = false;
         }
@@ -44,7 +45,7 @@ public class Skill_Fly : SkillBase {
 
     public override int GetId()
     {
-        return 9;
+        return (int)SkillId.Fly;
     }
 
     public override string GetName()
@@ -52,59 +53,79 @@ public class Skill_Fly : SkillBase {
         return "飞行";
     }
 
-    public override List<OpCode> GetOp(OpCode newOpCode)
+    protected override bool Use_Factory(params object[] values)
     {
-        return new List<OpCode> { OpCode.SoptMove, OpCode.Forward, OpCode.Jump, OpCode.Left, OpCode.Back, OpCode.Right, OpCode.Down };
-    }
+        if (values == null)
+        {
+            if (active)
+            {
+                Debug.Log("飞行模式关闭......");
+                //role.transform.position = new Vector3(role.transform.position.x, role.transform.position.y - 1, role.transform.position.z);
 
-    public override SkillTypeEnum GetSkillType()
-    {
-        return SkillTypeEnum.active;
-    }
+                active = false;
+                role.ChangeBody = false;
+                role.isFly = false;
+                skillSystem.DeleteNotingSkill((int)SkillId.Move);
+            }
+            else
+            {
+                //InfoManager.Instance.Add("起飞");
+                //role.transform.position = new Vector3(role.transform.position.x, role.transform.position.y + 1, role.transform.position.z);
+                soul.PlayAnimator("夜符[夜雀]");
+                role.isFly = true;
+                active = true;
+                role.ChangeBody = true;
+                skillSystem.AddNotningSkill((int)SkillId.Move);
 
-    protected override void OpEffect_Factory(OpCode opCode, Role otherRole, params float[] values)
-    {
+            }
+            AddEvent(0.5f, End);
+        }
+        if (values == null)
+        {
+            return true;
+        }
+        //移动相关内容
         if (!active)
         {
-            return;
+            return false;
         }
-
-        if (opCode == OpCode.Forward || opCode == OpCode.Back || opCode == OpCode.Left || opCode == OpCode.Right || opCode == OpCode.Jump || opCode == OpCode.Down)
+        int opCode = (int)values[0];
+        if (opCode == (int)OpCode.Forward || opCode == (int)OpCode.Back || opCode == (int)OpCode.Left || opCode == (int)OpCode.Right || opCode == (int)OpCode.Jump || opCode == (int)OpCode.Down)
         {
-            if (opCode == OpCode.Forward || opCode == OpCode.Back || opCode == OpCode.Left || opCode == OpCode.Right)
+            if (opCode == (int)OpCode.Forward || opCode == (int)OpCode.Back || opCode == (int)OpCode.Left || opCode == (int)OpCode.Right)
             {
                 isMove = true;
                 float y = 0;
-                switch (role.HandRightEquipentId)
+                switch (role.WeaponId)
                 {
                     case (int)EquipmentType.noth:
-                        animator.Play("飞行");
+                        soul.PlayAnimator("飞行");
                         break;
                     case (int)EquipmentType.sword:
-                        animator.Play("飞行");
+                        soul.PlayAnimator("飞行");
                         break;
                 }
 
                 if (role.isLocalPlayer)
                 {
                     y = Camera.main.transform.rotation.eulerAngles.y;
-                    if (opCode == OpCode.Forward)
+                    if (opCode == (int)OpCode.Forward)
                     {
                         role.transform.rotation = Quaternion.Euler(0, y, 0);
                     }
-                    if (opCode == OpCode.Back)
+                    if (opCode == (int)OpCode.Back)
                     {
 
                         role.transform.rotation = Quaternion.Euler(0, y + 180, 0);
 
                     }
 
-                    if (opCode == OpCode.Left)
+                    if (opCode == (int)OpCode.Left)
                     {
                         role.transform.rotation = Quaternion.Euler(0, y - 90, 0);
 
                     }
-                    if (opCode == OpCode.Right)
+                    if (opCode == (int)OpCode.Right)
                     {
                         role.transform.rotation = Quaternion.Euler(0, y + 90, 0);
                     }
@@ -112,55 +133,29 @@ public class Skill_Fly : SkillBase {
                 Vector3 v = role.transform.TransformDirection(Vector3.forward);
                 role.characterController.Move(v * Time.deltaTime * role.Speed);
             }
-            if (opCode == OpCode.Jump)
+            if (opCode == (int)OpCode.Jump)
             {
                 if (!isMove)
                 {
-                    animator.Play("升空");
+                    soul.PlayAnimator("升空");
                 }
                 isMove = true;
                 isUp = true;
                 role.characterController.Move(Vector3.up * Time.deltaTime * role.Speed);
             }
-            if (opCode == OpCode.Down)
+            if (opCode == (int)OpCode.Down)
             {
                 if (!isMove)
                 {
-                    animator.Play("降落");
+                    soul.PlayAnimator("降落");
                 }
                 isMove = true;
                 isUp = true;
                 role.characterController.Move(Vector3.down * Time.deltaTime * role.Speed);
             }
         }
+        //移动相关结束
 
-
-    }
-
-    protected override bool Use_Factory()
-    {
-        if (active)
-        {
-            Debug.Log("飞行模式关闭......");
-            //role.transform.position = new Vector3(role.transform.position.x, role.transform.position.y - 1, role.transform.position.z);
-
-            active = false;
-            role.ChangeBody = false;
-            role.isFly = false;
-            skillSystem.DeleteNotingSkill(Skill_Move.SkillId);
-        }
-        else
-        {
-            //InfoManager.Instance.Add("起飞");
-            //role.transform.position = new Vector3(role.transform.position.x, role.transform.position.y + 1, role.transform.position.z);
-            animator.Play("夜符[夜雀]");
-            role.isFly = true;
-            active = true;
-            role.ChangeBody = true;
-            skillSystem.AddNotningSkill(Skill_Move.SkillId);
-
-        }
-        AddEvent(0.5f, End);
         return true;
     }
     /// <summary>
@@ -169,7 +164,7 @@ public class Skill_Fly : SkillBase {
     public override void End()
     {
         //opCode = OpCode.Noth;
-        skillSystem.currentId = 0;
+        skillSystem.activeId = 0;
         //Debug.Log("技能结束");
     }
 }

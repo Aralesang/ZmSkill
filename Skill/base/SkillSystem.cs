@@ -2,40 +2,24 @@
 using System.Collections.Generic;
 using CSScriptLibrary;
 using UnityEngine;
-
-/// <summary>
-/// 操作码包装类
-/// </summary>
-public class OpCodeObject
-{
-    public OpCodeObject(OpCode opCode, params float[] values)
-    {
-        this.opCode = opCode;
-        this.values = values;
-    }
-    public OpCode opCode;
-    public float[] values;
-}
+using Photon.Pun;
 
 /// <summary>
 /// 技能系统(每个对象都拥有属于自己的技能系统)
 /// </summary>
 public class SkillSystem : MonoBehaviour
 {
-
-    /// <summary>
-    /// 所拥有的技能ID列表
-    /// </summary>
-    private List<int> skillIdList;
-
     /// <summary>
     /// 所拥有的技能对象列表
     /// </summary>
-    public Dictionary<int, SkillBase> _skillList;
+    public Dictionary<int, SkillBase> _skillMap;
 
-    
+    /// <summary>
+    /// 状态表
+    /// </summary>
+    private Dictionary<int, BuffBase> buffMap;
 
-    public List<int> shortCutList;
+    public Dictionary<int,int> shortCutMap = new Dictionary<int, int>();
 
     /// <summary>
     /// 当前激活中的技能
@@ -44,7 +28,7 @@ public class SkillSystem : MonoBehaviour
     /// 释放buff技能的过程算作激活
     /// buff的实现另外编写逻辑
     /// </summary>
-    public int currentId = -1;
+    public int activeId = 0;
     Role role;
     /// <summary>
     /// 操作码集合
@@ -53,37 +37,41 @@ public class SkillSystem : MonoBehaviour
 
     Animator animator;
 
+
     /// <summary>
     /// 被禁止的技能列表
     /// </summary>
-    public ArrayList NotningSkillLIst;
-
+    public ArrayList NotningSkillLIst = new ArrayList();
+    /// <summary>
+    /// buff免疫列表
+    /// </summary>
+    public List<int> NotningBuffList;
     public Dictionary<int, SkillBase> SkillMap
     {
         get
         {
-            if (_skillList == null)
+            if (_skillMap == null)
             {
-                _skillList = new Dictionary<int, SkillBase>();
+                _skillMap = new Dictionary<int, SkillBase>();
             }
-            return _skillList;
+            return _skillMap;
         }
     }
 
-    public List<int> SkillIdList
+    public Dictionary<int, BuffBase> BuffMap
     {
         get
         {
-            if (skillIdList == null)
+            if (buffMap == null)
             {
-                skillIdList = CSscriptManager.Instance.InitSkill(role.id);
+                buffMap = new Dictionary<int, BuffBase>();
             }
-            return skillIdList;
+            return buffMap;
         }
 
         set
         {
-            skillIdList = value;
+            buffMap = value;
         }
     }
 
@@ -101,26 +89,59 @@ public class SkillSystem : MonoBehaviour
     /// </summary>
     public void SkillAllDestroy()
     {
-        if (SkillIdList == null || SkillIdList.Count == 0)
-        {
-            return;
-        }
         if (SkillMap == null || SkillMap.Count == 0)
         {
             return;
         }
-        foreach (int id in SkillIdList)
+        foreach (SkillBase skill in SkillMap.Values)
         {
-            SkillBase skill = SkillMap[id];
+            skill.DestroyEffect();
+        }
+        ClearEvent();
+    }
+
+    /// <summary>
+    /// 删除所有技能
+    /// </summary>
+    public void SkillAllRemove()
+    {
+        if (SkillMap == null || SkillMap.Count == 0)
+        {
+            return;
+        }
+        List<int> skillIdList = new List<int>();
+        foreach (int skillid in SkillMap.Keys)
+        {
+            skillIdList.Add(skillid);
+        }
+        foreach (int skillid in skillIdList)
+        {
+            SkillBase skill = GetSkillById(skillid);
             skill.Forget();
         }
         ClearEvent();
     }
 
+    /// <summary>
+    /// 销毁所有技能效果
+    /// </summary>
+    public void SkillAllEffect()
+    {
+        if (SkillMap == null || SkillMap.Count == 0)
+        {
+            return;
+        }
+        foreach (SkillBase skill in SkillMap.Values)
+        {
+            skill.DestroyEffect();
+        }
+    }
+
+    //加载技能字典
     public void InitSkillMap()
     {
-        SkillAllDestroy();
-        SkillIdList = CSscriptManager.Instance.InitSkill(role.ModeId);
+        SkillAllRemove();
+        List<int> SkillIdList = CSscriptManager.Instance.InitSkill(role.ModeId);
         if (SkillIdList == null || SkillIdList.Count == 0)
         {
             Debug.LogError("技能列表加载失败");
@@ -132,7 +153,7 @@ public class SkillSystem : MonoBehaviour
             if (skill != null)
             {
                 skill.Init(role);
-                //InfoManager.Instance.Add("技能对象字典初始化:" + skill.GetId());
+                //Debug.Log("技能对象字典初始化:" + skill.GetName());
                 SkillMap.Add(skill.GetId(), skill);
             }
             else
@@ -154,6 +175,11 @@ public class SkillSystem : MonoBehaviour
     void FixedUpdate()
     {
         SkillStart();
+        //死亡时销毁所有技能效果
+        if (role.isSurvive == 1)
+        {
+            SkillAllDestroy();
+        }
     }
 
     /// <summary>
@@ -162,15 +188,30 @@ public class SkillSystem : MonoBehaviour
     /// <returns></returns>
     public void SkillStart()
     {
-        foreach (int skillId in SkillIdList)
+        foreach (SkillBase skill in SkillMap.Values)
         {
-            SkillBase skill = GetSkillById(skillId);
             if (skill == null)
             {
-                Debug.LogError("无效技能");
+                Debug.Log("无效技能");
                 continue;
             }
-            skill.Effect_Factory();
+            skill?.Effect_Base();
+        }
+    }
+
+    /// <summary>
+    /// buff效果发动
+    /// </summary>
+    public void BuffEffect()
+    {
+        foreach (BuffBase buff in BuffMap.Values)
+        {
+            if (buff == null)
+            {
+                Debug.Log("无效buff");
+                continue;
+            }
+            buff?.Effect_Base();
         }
     }
 
@@ -182,35 +223,15 @@ public class SkillSystem : MonoBehaviour
 
     }
 
-    public void AddOp(OpCode opCode, params float[] values)
-    {
-        AddOp(opCode, null, values);
-    }
-
     /// <summary>
-    /// 追加操作(已有操作不重复添加)
+    /// 通过技能ID获取技能实例
+    /// 枚举类型参数重载
     /// </summary>
-    /// <param name="opCode"></param>
-    public void AddOp(OpCode opCode, Role role, params float[] values)
+    /// <param name="skillId"></param>
+    /// <returns></returns>
+    public SkillBase GetSkillById(SkillId skillId)
     {
-        ////有窗口打开的状态下不接受指令输入
-        //if (DevDogOpenManagers.isOpen)
-        //{
-        //    return;
-        //}
-        //被攻击时不接受操作
-        if (animator)
-        {
-            
-        }
-       
-        foreach (int skillId in SkillIdList)
-        {
-            SkillBase skill = GetSkillById(skillId);
-            skill.opEffect(opCode, role, values);
-        }
-
-
+        return GetSkillById((int)skillId);
     }
 
     /// <summary>
@@ -222,24 +243,55 @@ public class SkillSystem : MonoBehaviour
     {
         if (SkillMap == null || SkillMap.Count == 0)
         {
-            InitSkillMap();
+            Debug.Log("没有可用技能");
+            return null;
         }
         if (!SkillMap.ContainsKey(skillId))
         {
-            Debug.LogError(skillId + "错误的技能ID");
-            Debug.LogError(SkillMap.Count);
+            Debug.Log("该技"+ skillId + "尚未学会");
             return null;
         }
         return SkillMap[skillId];
     }
 
-    public bool Use(int skillId)
+    /// <summary>
+    /// 使用技能
+    /// </summary>
+    /// <param name="skillId">技能Id</param>
+    /// <param name="targetRole">目标角色</param>
+    /// <param name="values">参数列表</param>
+    /// <returns></returns>
+    public bool Use(SkillId skillId , params object[] values)
+    {
+        return Use((int)skillId,values);
+    }
+
+    public void UseUp(SkillId skillId)
+    {
+        UseUp((int)skillId);
+    }
+
+    public void UseUp(int skillId)
+    {
+        SkillBase skill = GetSkillById(skillId);
+        skill?.UseUp();
+    }
+
+    /// <summary>
+    /// 使用技能
+    /// </summary>
+    /// <param name="skillId">技能Id</param>
+    /// <param name="targetRole">目标角色</param>
+    /// <param name="values">参数列表</param>
+    /// <returns></returns>
+    [PunRPC]
+    public bool Use(int skillId,params object[] values)
     {
         SkillBase skill = GetSkillById(skillId);
         if (skill != null)
         {
             //InfoManager.Instance.Add(skill.GetName());
-            return skill.Use();
+            return skill.Use(values);
         }
         return false;
     }
@@ -249,7 +301,7 @@ public class SkillSystem : MonoBehaviour
     /// </summary>
     public void ClearEvent()
     {
-        currentId = 0;
+        activeId = 0;
         foreach (SkillBase skill in SkillMap.Values)
         {
             skill.ClearEvent();
@@ -288,5 +340,47 @@ public class SkillSystem : MonoBehaviour
         NotningSkillLIst.Remove(skillId);
     }
 
+    /// <summary>
+    /// 获取当前正在激活中的技能
+    /// </summary>
+    /// <returns></returns>
+    public SkillBase GetActiveSkill()
+    {
+        if (activeId == 0)
+        {
+            return null;
+        }
+        SkillBase skill = GetSkillById(activeId);
+        return skill;
+    }
+
+    /// <summary>
+    /// 附加buff
+    /// </summary>
+    /// <returns></returns>
+    public bool AddBuff(BuffBase buff)
+    {
+        if (NotningBuffList != null && NotningBuffList.Contains(buff.Id))
+        {
+            Debug.Log(role.Name+"免疫"+buff.Name);
+            return false;
+        }
+        BuffMap.Add(buff.Id, buff);
+        return true;
+    }
+
+    /// <summary>
+    /// 消除buff
+    /// </summary>
+    /// <returns></returns>
+    public bool DelBuff(int buffId)
+    {
+        if (buffMap == null || !BuffMap.ContainsKey(buffId))
+        {
+            return false;
+        }
+        buffMap.Remove(buffId);
+        return true;
+    }
 
 }

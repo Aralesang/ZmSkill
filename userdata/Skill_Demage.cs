@@ -36,28 +36,14 @@ public class Skill_Demage : SkillBase
 
     Vector3 point;
 
-    public static int SkillId = 3;
-
     GameObject hitObj = null;
-    public override List<OpCode> GetOp(OpCode newOpCode)
-    {
-        return new List<OpCode> { OpCode.Demage };
-    }
 
-    public override bool Effect_Limit()
-    {
-        //玩家死亡状态下不触发技能
-        if (role.isSurvive == 1)
-        {
-            return false;
-        }
+    Soul soul = null;
 
-        //需要消耗的值不足
-        if (!CheckConsume())
-        {
-            return false;
-        }
-        return true;
+    public Skill_Demage()
+    {
+        DoubleActive = true;
+       
     }
 
     public override void Effect()
@@ -67,7 +53,7 @@ public class Skill_Demage : SkillBase
 
     public override int GetId()
     {
-        return 3;
+        return (int)SkillId.Demage;
     }
 
     public override string GetName()
@@ -75,10 +61,6 @@ public class Skill_Demage : SkillBase
         return "被击";
     }
 
-    public override SkillTypeEnum GetSkillType()
-    {
-        return SkillTypeEnum.passive;
-    }
 
     public void Trigger()
     {
@@ -91,35 +73,29 @@ public class Skill_Demage : SkillBase
 
     }
 
-    protected override bool Use_Factory()
-    {
-        return true;
-    }
-
-    protected override void OpEffect_Factory(OpCode opCode,Role otherRole, params float[] values)
+    protected override bool Use_Factory(params object[] values)
     {
         if (role.isSurvive == 1)
         {
-            return;
+            return false;
         }
         if (role.hp <= 0)
         {
             role.isSurvive = 1;
-            animator.Play("死亡");
+            soul.PlayAnimator("死亡");
         }
         if (hitObj == null)
         {
-            hitObj = AssetsManager.Instance.Get("hitmonster.prefab") as GameObject;
+            hitObj = AssetsManager.Instance.Get<GameObject>("血液溅射_小.prefab");
         }
-        demage = (int)values[0];
+        Role otherRole = (Role)values[0];
+        demage = (int)values[1];
         //是否击飞
-        int isFlown = (int)values[1];
+        int isFlown = (int)values[2];
 
-        if (values.Length > 2)
+        if (values.Length > 3)
         {
-            point.x = values[2];
-            point.y = values[3];
-            point.z = values[4];
+            point = (Vector3)values[3];
         }
         else
         {
@@ -127,7 +103,7 @@ public class Skill_Demage : SkillBase
         }
 
         Vector3 roPoint = new Vector3();
-        //Quaternion quaten = new Quaternion();
+        
         if (otherRole != null)
         {
             roPoint = otherRole.transform.position;
@@ -136,48 +112,55 @@ public class Skill_Demage : SkillBase
         {
             roPoint = point;
         }
-
-        //roPoint.x = role.transform.position.x;
-        //roPoint.z = role.transform.position.z;
         roPoint.y = role.transform.position.y;
         role.transform.LookAt(roPoint);
-        //Vector3 rota = GetLookAtEuler(role.transform, point);
-        //role.transform.rotation = Quaternion.Euler(rota.x,rota.y,rota.z);
-        //Debug.Log("转向："+ rota);
+        soul = role.soul;
+        //防御状态下体质减伤率为100%
+        if (soul.isDef)
+        {
+            demage = otherRole.Physical_Atk - role.Physique;
+        }
+        else
+        {
+            //常态状态下体质减伤率为50%
+            demage = otherRole.Physical_Atk - (role.Physique / 2);
+        }
+        demage = demage < 0 ? 0 : demage;
+        role.EpChange(-demage);
+
+
         GameObject obj = GameObject.Instantiate(hitObj, point, role.transform.rotation);
         GameObject.Destroy(obj, 1);
-        //InfoManager.Instance.Add(role.Name + "受到" + demage + "点伤害");
         Debug.Log(role.Name + "受到" + demage + "点伤害");
         role.HpChange(-demage);
-        
+
         //受到伤害，打断技能，清除其他技能的计时器
-        
+
 
         if (isFlown == (int)KoType.FLOWN)
         {
-            Start();
-            this.ClearEvent();
-            animator.Play("击飞");
-            AddEvent(0, Flown, 0.5f);
-            AddEvent(2f,Flown_Up);
+            soul.PlayAnimator("击飞");
+            AddEvent(0, Flown, 0.2f);
+            AddEvent(2f, Flown_Up);
             AddEvent(2, End);
         }
         else if (isFlown == (int)KoType.KNOCK_DOWN)
         {
-            Start();
-            this.ClearEvent();
-            animator.Play("击倒");
-            AddEvent(0.5f, Down, 0.5f);
+            soul.PlayAnimator("击倒");
+            AddEvent(0.5f, Down, 0.2f);
             AddEvent(2f, Down_Up);
             AddEvent(2, End);
         }
         else if (isFlown == (int)KoType.STIFF)
         {
-            Start();
-            this.ClearEvent();
-            animator.Play("被攻击", 0, 0f);
+            soul.PlayAnimator("被攻击", 0, 0f);
             AddEvent(1, End);
         }
+        else
+        {
+            AddEvent(0,End);
+        }
+        return true;
     }
 
     /// <summary>
@@ -185,7 +168,7 @@ public class Skill_Demage : SkillBase
     /// </summary>
     public void Flown()
     {
-        role.transform.Translate(Vector3.back * Time.deltaTime * 4F);
+        role.transform.Translate(Vector3.back * Time.deltaTime * 16F);
     }
 
     /// <summary>
@@ -193,7 +176,7 @@ public class Skill_Demage : SkillBase
     /// </summary>
     public void Down()
     {
-        role.transform.Translate(Vector3.back * Time.deltaTime * 4f);
+        role.transform.Translate(Vector3.back * Time.deltaTime * 16f);
     }
 
     /// <summary>
@@ -220,10 +203,10 @@ public class Skill_Demage : SkillBase
 
     public void Flown_Up()
     {
-        animator.Play("仰面起身");
+        soul.PlayAnimator("仰面起身");
     }
     public void Down_Up()
     {
-        animator.Play("伏地起身");
+        soul.PlayAnimator("伏地起身");
     }
 }

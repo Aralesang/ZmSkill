@@ -28,7 +28,7 @@ public class Skill_TuJin : SkillBase
 
     public override int GetId()
     {
-        return 10;
+        return (int)SkillId.TuJin;
     }
 
     public override string GetName()
@@ -36,26 +36,12 @@ public class Skill_TuJin : SkillBase
         return "突进";
     }
 
-    public override List<OpCode> GetOp(OpCode newOpCode)
-    {
-        return null;
-    }
 
-    public override SkillTypeEnum GetSkillType()
-    {
-        return SkillTypeEnum.active;
-    }
-
-    protected override void OpEffect_Factory(OpCode opCode, Role otherRole, params float[] values)
-    {
-        
-    }
-
-    protected override bool Use_Factory()
+    protected override bool Use_Factory(params object[] values)
     {
         enemyQue = new List<Role>();
         float distance = role.attackDistance + dican;
-        foreach (Role go in RoleManager.Instance.RoleList)
+        foreach (Role go in RoleManager.Instance.RoleMap.Values)
         {
             if (go.Group == role.Group)
             {
@@ -72,9 +58,11 @@ public class Skill_TuJin : SkillBase
                 //distance = temp;
             }
         }
+        if (role.Target != null)
+        {
+            role.transform.LookAt(role.Target.transform);
+        }
         Debug.Log("突进");
-        target = attackLock.target;
-        attackLock.target = null;
         AddEvent(0, Trigger,0.5f);
         AddEvent(0.5f, End);
         return true;
@@ -83,18 +71,17 @@ public class Skill_TuJin : SkillBase
     public void Trigger()
     {
         role.transform.Translate(Vector3.forward * Time.deltaTime * 30F);
-        animator.Play("突进");
+        soul.PlayAnimator("突进");
     }
     public override void End()
     {
         foreach (Role role in enemyQue)
         {
             SkillSystem skill = role.GetComponent<SkillSystem>();
-            skill.AddOp(OpCode.Demage, role, (int)(role.atk * reat), (int)KoType.KNOCK_DOWN);
+            skill.Use((int)SkillId.Demage, role, (int)(role.Physical_Atk * reat), (int)KoType.KNOCK_DOWN);
         }
         equipmentShow.Reload();
         //opCode = OpCode.Noth;
-        skillSystem.currentId = 0;
-        attackLock.target = target;
+        skillSystem.activeId = 0;
     }
 }

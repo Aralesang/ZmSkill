@@ -7,7 +7,6 @@ using UnityEngine;
 /// 后空翻
 /// </summary>
 public class Skill_HouKongFan : SkillBase {
-    public static int SkillId = 11;
     public override void Effect()
     {
         
@@ -15,7 +14,7 @@ public class Skill_HouKongFan : SkillBase {
 
     public override int GetId()
     {
-        return 11;
+        return (int)SkillId.HouKongFan;
     }
 
     public override string GetName()
@@ -23,25 +22,9 @@ public class Skill_HouKongFan : SkillBase {
         return "后空翻";
     }
 
-    public override List<OpCode> GetOp(OpCode newOpCode)
+    protected override bool Use_Factory(params object[] values)
     {
-        return new List<OpCode> { };
-    }
-
-    public override SkillTypeEnum GetSkillType()
-    {
-        return SkillTypeEnum.active;
-    }
-
-    protected override void OpEffect_Factory(OpCode opCode, Role otherRole, params float[] values)
-    {
-        
-
-    }
-
-    protected override bool Use_Factory()
-    {
-        animator.Play("后空翻");
+        soul.PlayAnimator("后空翻");
         AddEvent(0.1f, Trigger,0.5f);
         AddEvent(0,End);
         return true;

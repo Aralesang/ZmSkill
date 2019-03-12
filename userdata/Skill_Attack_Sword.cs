@@ -14,7 +14,7 @@ public class Skill_Attack_Sword : SkillBase {
     /// <summary>
     /// 攻击范围追加
     /// </summary>
-    public int distance = 2;
+    public int distance = 0;
 
     /// <summary>
     /// 技能结束
@@ -23,12 +23,16 @@ public class Skill_Attack_Sword : SkillBase {
     {
         //role.GetComponent<EquipmentShow>().Reload();
         //opCode = OpCode.Noth;
-        skillSystem.currentId = 0;
+        skillSystem.activeId = 0;
         stage = 1;
         isAdd = true;
     }
     public override bool Effect_Limit()
     {
+        if (role.WeaponId != (int)EquipmentType.sword)
+        {
+            return false;
+        }
         //达到第三阶段后不能继续追加攻击
         if (stage > 3)
         {
@@ -37,23 +41,6 @@ public class Skill_Attack_Sword : SkillBase {
 
         //不允许追加攻击的阶段不接受操作
         if (!isAdd)
-        {
-            return false;
-        }
-
-        //玩家死亡状态下不触发技能
-        if (role.isSurvive == 1)
-        {
-            return false;
-        }
-        //如果当前有技能处于激活状态，且不是该技能，则不能激活该技能
-        if (skillSystem.currentId > 0 && skillSystem.currentId != GetId())
-        {
-            return false;
-        }
-
-        //需要消耗的值不足
-        if (!CheckConsume())
         {
             return false;
         }
@@ -68,59 +55,18 @@ public class Skill_Attack_Sword : SkillBase {
     public Skill_Attack_Sword()
     {
         Description = "可以使用剑术攻击敌人\r\n使用剑系列武器时，攻击范围增加"+ distance;
+        DoubleActive = true;
     }
 
 
     public override int GetId()
     {
-        return 5;
+        return (int)SkillId.Attack_Sword;
     }
 
     public override string GetName()
     {
         return "剑术精通";
-    }
-
-    public override List<OpCode> GetOp(OpCode newOpCode)
-    {
-        return new List<OpCode>() {OpCode.Attack};
-    }
-
-    public override SkillTypeEnum GetSkillType()
-    {
-        return SkillTypeEnum.passive;
-    }
-
-
-    protected override void OpEffect_Factory(OpCode opCode,Role otherRole, params float[] values)
-    {
-        if (role.HandRightEquipentId != (int)EquipmentType.sword)
-        {
-            return;
-        }
-        Start();
-        isAdd = false;
-        switch (stage)
-        {
-            case 1:
-                //skill.ClearEvent();
-                animator.Play("挥刀1");
-                TimeNodeList.Add(new TimeNode(0.2f, Trigger));
-                TimeNodeList.Add(new TimeNode(0.3f, AddStage));
-                TimeNodeList.Add(new TimeNode(0.5f, End));
-                break;
-            case 2:
-                animator.Play("挥刀2");
-                TimeNodeList.Add(new TimeNode(0.2f, Trigger));
-                TimeNodeList.Add(new TimeNode(0.3f, AddStage));
-                TimeNodeList.Add(new TimeNode(0.5f, End));
-                break;
-            case 3:
-                animator.Play("挥刀3");
-                TimeNodeList.Add(new TimeNode(0.3f, Trigger));
-                TimeNodeList.Add(new TimeNode(1f, End));
-                break;
-        }
     }
 
     /// <summary>
@@ -134,31 +80,59 @@ public class Skill_Attack_Sword : SkillBase {
 
     public void Trigger()
     {
+        Debug.Log("斩！");
         //Role enemy = null;
         float distance = role.attackDistance + this.distance;
-        foreach (Role go in RoleManager.Instance.RoleMap.Values)
+        List<Role> targetList = new List<Role>(); 
+        foreach (GameObject obj in TargetManager.TargetList)
         {
+            Role go = obj.GetComponent<Role>();
             if (go.Group == role.Group)
+            {
+                continue;
+            }
+            if (go.isSurvive == 1)
             {
                 continue;
             }
             float temp = Vector3.Distance(go.transform.position, role.transform.position);
             if (temp <= distance)
             {
+                targetList.Add(go);
                 Vector3 targetPos = go.transform.position;
                 targetPos.y = role.transform.position.y;
                 role.transform.LookAt(targetPos);
-                go.GetComponent<SkillSystem>().AddOp(OpCode.Demage, role, (int)role.atk, stage == 3 ? (int)KoType.KNOCK_DOWN : (int)KoType.STIFF);
+                role.Target = go.gameObject;
+                go.soul.Demage(role,1,role.Physical_Atk);
             }
         }
-        //if (enemy != null)
-        //{
-            
-        //}
     }
 
-    protected override bool Use_Factory()
+    protected override bool Use_Factory(params object[] values)
     {
+        
+        isAdd = false;
+        switch (stage)
+        {
+            case 1:
+                //skill.ClearEvent();
+                soul.PlayAnimator("挥刀1");
+                TimeNodeList.Add(new TimeNode(0.0f, Trigger));
+                TimeNodeList.Add(new TimeNode(0.1f, AddStage));
+                TimeNodeList.Add(new TimeNode(0.5f, End));
+                break;
+            case 2:
+                soul.PlayAnimator("挥刀2");
+                TimeNodeList.Add(new TimeNode(0.0f, Trigger));
+                TimeNodeList.Add(new TimeNode(0.1f, AddStage));
+                TimeNodeList.Add(new TimeNode(0.5f, End));
+                break;
+            case 3:
+                soul.PlayAnimator("挥刀3");
+                TimeNodeList.Add(new TimeNode(0.0f, Trigger));
+                TimeNodeList.Add(new TimeNode(0.5f, End));
+                break;
+        }
         return true;
     }
 

@@ -13,37 +13,50 @@ public class SkillWindowsUI : ContainerWindwosUI
     private static SkillWindowsUI _instance;
     public static SkillWindowsUI Instance { get { return _instance; } }
 
+    public SkillSystem skillSystem;
+
     //信息栏
     public GameObject Info;
 
     private void Awake()
     {
-        _instance = this;
-        key = KeyCode.K;
+       
+        
     }
 
     // Use this for initialization
     void Start()
     {
-        Load();
-        Init();
     }
+
+
 
     /// <summary>
     /// 初始化为对象拥有的技能列表
     /// </summary>
-    public void Init()
+    public void InitSkill()
     {
         Clear();
         SkillSystem skillsystem = PlayerManagers.Player.GetComponent<SkillSystem>();
 
-        foreach (int skillId in skillsystem.SkillIdList)
+        foreach (SkillBase skill in skillsystem.SkillMap.Values)
         {
-            Pickup(skillsystem.GetSkillById(skillId));
+            //Debug.Log("创建技能:"+ skill.GetName());
+            Pickup(skillsystem.GetSkillById(skill.GetId()));
         }
     }
 
-
+    public override void Init()
+    {
+        _instance = this;
+        key = KeyCode.K;
+        if (uiItem == null)
+        {
+            uiItem = AssetsManager.Instance.Get<GameObject>("技能ui.prefab");
+        }
+        Load();
+        InitSkill();
+    }
 
     // Update is called once per frame
     void Update()
@@ -58,26 +71,17 @@ public class SkillWindowsUI : ContainerWindwosUI
     public void Pickup(SkillBase skill)
     {
         //bool end = false;
-        Item = Instantiate(UiItem);
+        Item = Instantiate(uiItem);
+        
         UiSkill uiSkill = Item.GetComponent<UiSkill>();
         uiSkill.skill = skill;
+        //Debug.Log("创建技能UI:" + skill.Name);
         uiSkill.text = Info.GetComponent<Text>();
         Image imagesingle = Item.transform.GetComponent<Image>();
-
+   
 
         imagesingle.overrideSprite = skill.GetIcon();
-        //for (int i = 0; i < UCellList.Count; i++)
-        //{
-        //    if (UCellList[i].transform.childCount > 0)
-        //    {
-        //        if (skill.Id == UCellList[i].transform.GetChild(0).GetComponent<UiSkill>().skill.Id)
-        //        {
-        //            end = true;
-        //            StartCoroutine(ReturnToPool());
-        //            Item.transform.SetParent(UIManager.Instance.PoolCanvas.transform);
-        //        }
-        //    }
-        //}
+
         for (int i = 0; i < UCellList.Count; i++)
         {
             if (UCellList[i].transform.childCount == 0)

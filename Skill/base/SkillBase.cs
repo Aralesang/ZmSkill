@@ -33,13 +33,13 @@ public abstract class SkillBase
     /// <summary>
     /// 技能ID(生成时自动编排)
     /// </summary>
-    public int Id = 0;
+    private int id = 0;
 
     /// <summary>
     /// 技能等级，技能属性会根据成长控制函数决定变化
     /// 测试阶段默认每一个等级增加一倍
     /// </summary>
-    public int Level = 100;
+    public int Level = 1;
 
     /// <summary>
     /// 技能类型:0:主动技能(可以主动按键施展的技能) 1:被动技能(不可以主动施展,但达成条件时会自动施展的技能)
@@ -48,9 +48,14 @@ public abstract class SkillBase
     public SkillTypeEnum SkillType = SkillTypeEnum.active;
 
     /// <summary>
+    /// 技能最近一次施展的时间
+    /// </summary>
+    private float oldtime = 0;
+
+    /// <summary>
     /// 施展之后，直到第二次施展之间所需要经过的时间
     /// </summary>
-    public float Cd = 0;
+    private float cd = 0;
 
     /// <summary>
     /// 技能施展时的MP消耗量(技能持续变化MP的情况之后再作考虑)
@@ -74,19 +79,14 @@ public abstract class SkillBase
     public Role role;
 
     /// <summary>
-    /// 技能释放者的动画对象
+    /// 发动者灵魂
     /// </summary>
-    public Animator animator;
+    public Soul soul;
 
     /// <summary>
     /// 技能系统
     /// </summary>
     public SkillSystem skillSystem;
-
-    /// <summary>
-    /// 战斗锁定系统的引用
-    /// </summary>
-    public AttackLock attackLock;
 
     /// <summary>
     /// 技能图标路径
@@ -98,42 +98,148 @@ public abstract class SkillBase
     /// </summary>
     public string Description { get; set; }
 
-
     /// <summary>
     /// 装备动作外观变化系统
     /// </summary>
     public EquipmentShow equipmentShow;
 
     /// <summary>
-    /// 因为其他对象触发时，获取触发者的对象
-    /// </summary>
-    public Role otherRole;
-
-    /// <summary>
     /// 时间节点集合
     /// </summary>
     public List<TimeNode> TimeNodeList;
 
+    private bool press;
+    private bool active;
+    private List<int> cancel;
+    private bool cancelAll;
+    private bool doubleActive = false;
+    private bool beAllCancel = false;
+    /// <summary>
+    /// 技能是否已经处于激活状态（该字段技能第一次激活时为false，当激活中再释放则为true
+    /// </summary>
+    public bool Active
+    {
+        get
+        {
+            return active;
+        }
+
+        set
+        {
+            active = value;
+        }
+    }
+    /// <summary>
+    /// 可以打断的技能列表
+    /// </summary>
+    public List<int> Cancel
+    {
+        get
+        {
+            return cancel;
+        }
+
+        set
+        {
+            cancel = value;
+        }
+    }
+    /// <summary>
+    /// 是否按住
+    /// </summary>
+    public bool Press
+    {
+        get
+        {
+            return press;
+        }
+
+        set
+        {
+            press = value;
+        }
+    }
+    /// <summary>
+    /// 连续激活(是否可以打断自己)
+    /// 技能是否可以在已激活状态下再次激活
+    /// 适用于连续按下可以进行的连续技类型的技能
+    /// </summary>
+    public bool DoubleActive
+    {
+        get
+        {
+            return doubleActive;
+        }
+
+        set
+        {
+            doubleActive = value;
+        }
+    }
+    /// <summary>
+    /// 技能冷却时间
+    /// </summary>
+    public float Cd
+    {
+        get
+        {
+            return cd;
+        }
+
+        set
+        {
+            cd = value;
+        }
+    }
+
+    /// <summary>
+    /// 可以打断所有的技能
+    /// 该属性屏蔽打断技能列表，该属性为true时无视打断列表
+    /// </summary>
+    public bool CancelAll
+    {
+        get
+        {
+            return cancelAll;
+        }
+
+        set
+        {
+            cancelAll = value;
+        }
+    }
+    /// <summary>
+    /// 是否可以被任何技能打断
+    /// </summary>
+    public bool BeAllCancel { get => beAllCancel; set => beAllCancel = value; }
+
+    /// <summary>
+    /// 弹起，按下技能键后停止按下时调用
+    /// </summary>
+    public void UseUp()
+    {
+        Press = false;
+    }
+
     /// <summary>
     /// 技能主动效果系统函数部分
     /// </summary>
-    public bool Use()
+    public bool Use(params object[] values)
     {
-        
+        Press = true;
         if (!Effect_Limit_Factory())
         {
             //InfoManager.Instance.Add(Name + "发动失败");
             return false;
         }
-        
-        role.soul.SkillPerception(this);
-
+        this.Start();
         role.MpChange(Mp);
         role.HpChange(Hp);
         role.EpChange(Ep);
-        this.Start();
-        this.Use_Factory();
-
+        role.soul.SkillPerception(this,values);
+        oldtime = Time.time;
+        this.Use_Factory(values);
+        Active = true;
         return true;
     }
 
@@ -141,13 +247,13 @@ public abstract class SkillBase
     /// 使用技能,主动触发技能时调用
     /// </summary>
     /// <returns></returns>
-    protected abstract bool Use_Factory();
+    protected abstract bool Use_Factory(params object[] values);
 
 
     /// <summary>
     /// 技能被动效果系统包装部分
     /// </summary>
-    public virtual void Effect_Factory()
+    public virtual void Effect_Base()
     {
         if (TimeNodeList != null && TimeNodeList.Count > 0)
         {
@@ -163,22 +269,97 @@ public abstract class SkillBase
                 {
                     TimeNodeList.RemoveAt(0);
                 }
-                
+
             }
         }
         //role.soul.SkillPerception(this);
         this.Effect();
-
     }
 
     public virtual bool Effect_Limit_Factory()
     {
-        if (skillSystem.NotningSkillLIst.Contains(GetId()))
+        //是否属于被禁止使用的技能
+        if (skillSystem.NotningBuffList != null && skillSystem.NotningSkillLIst.Contains(GetId()))
         {
             //Debug.Log(GetName()+"已被禁止");
             return false;
         }
+
+        if (!SkillCd())
+        {
+            return false;
+        }
+
+        //检查技能是否符合基本打断规则
+        if (!IsCancel())
+        {
+            return false;
+        }
+        //玩家死亡状态下不触发技能
+        if (role.isSurvive == 1)
+        {
+            return false;
+        }
+
+        //需要消耗的值不足
+        if (!CheckConsume())
+        {
+            return false;
+        }
         return Effect_Limit();
+    }
+
+    /// <summary>
+    /// 该技能是否可以取消当前技能
+    /// </summary>
+    /// <returns></returns>
+    public bool IsCancel()
+    {
+        int activeId = skillSystem.activeId;
+        //当前没有技能处于激活中
+        if (activeId == 0)
+        {
+            return true;
+        }
+        //是当前技能
+        if (activeId == id)
+        {
+            if (DoubleActive)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+       
+        SkillBase activeSkill = skillSystem.GetActiveSkill();
+        //当前技能拥有被任何技能打断的特性，直接返回true
+        if (activeSkill.BeAllCancel)
+        {
+            return true;
+        }
+        //当前技能不具备打断其他技能的特性
+        if (!IsCancel(activeId))
+        {
+            return false;
+        }
+        //无法找到当前激活的技能，允许释放其他技能
+        if (activeSkill == null)
+        {
+            return true;
+        }
+        //目标技能是否可以被打断
+        bool isok = IsCancel(activeSkill.GetId());
+        if (isok)
+        {
+            //如果目标技能被打断，则清除目标技能所有事件
+            activeSkill?.ClearEvent();
+            //并强制结束技能
+            activeSkill?.End();
+        }
+        return isok;
     }
 
     /// <summary>
@@ -190,22 +371,6 @@ public abstract class SkillBase
     /// </summary>
     public virtual bool Effect_Limit()
     {
-        //玩家死亡状态下不触发技能
-        if (role.isSurvive == 1)
-        {
-            return false;
-        }
-        //如果当前有技能处于激活状态，则不能激活该技能
-        if (skillSystem.currentId > 0 && skillSystem.currentId != Cd)
-        {
-            return false;
-        }
-
-        //需要消耗的值不足
-        if (!CheckConsume())
-        {
-            return false;
-        }
         return true;
     }
 
@@ -228,8 +393,8 @@ public abstract class SkillBase
     /// </summary>
     public void Start()
     {
-        ClearEvent();
-        skillSystem.currentId = this.GetId();
+        skillSystem.ClearEvent();
+        skillSystem.activeId = this.GetId();
     }
 
     /// <summary>
@@ -239,17 +404,24 @@ public abstract class SkillBase
     {
         equipmentShow.Reload();
         //opCode = OpCode.Noth;
-        skillSystem.currentId = 0;
+        skillSystem.activeId = 0;
+        Active = false;
+        End_Custom();
         //Debug.Log("技能结束");
     }
 
-   
+    /// <summary>
+    /// 自定义技能结束效果
+    /// </summary>
+    public virtual void End_Custom()
+    {
+
+    }
 
     public void Init()
     {
         this.Name = GetName();
-        this.Id = GetId();
-        this.SkillType = GetSkillType();
+        this.id = GetId();
     }
 
     /// <summary>
@@ -258,12 +430,11 @@ public abstract class SkillBase
     public void Init(Role role)
     {
         this.role = role;
-        this.animator = role.GetComponent<Animator>();
+        this.soul = role.GetComponent<Soul>();
         this.skillSystem = role.GetComponent<SkillSystem>();
         this.Name = GetName();
-        this.Id = GetId();
-        this.SkillType = GetSkillType();
-        this.attackLock = role.GetComponent<AttackLock>();
+        this.id = GetId();
+        this.SkillType = SkillTypeEnum.active;
         this.equipmentShow = role.GetComponent<EquipmentShow>();
         this.TimeNodeList = new List<TimeNode>();
         Effect_Init();
@@ -278,9 +449,18 @@ public abstract class SkillBase
     /// 如果技能没有冷却时间，则灵气的恢复难度需要提高
     /// 非特殊符卡或特殊事件则无法恢复灵气
     /// </summary>
-    private void SkillCd()
+    private bool SkillCd()
     {
-
+        //是否处于冷却时间
+        if ((oldtime > 0 && Cd > 0) && (Time.time - oldtime < Cd))
+        {
+            //Debug.Log("技能尚未冷却完毕");
+            return false;
+        }
+        else
+        {
+            return true;
+        }
     }
 
     /// <summary>
@@ -294,48 +474,6 @@ public abstract class SkillBase
     /// <returns></returns>
     public abstract int GetId();
 
-    /// <summary>
-    /// 获取技能类型
-    /// </summary>
-    /// <returns></returns>
-    public abstract SkillTypeEnum GetSkillType();
-
-
-    public void AddOp(OpCode newOpCod, params float[] values)
-    {
-        opEffect(newOpCod, null, values);
-    }
-
-    /// <summary>
-    /// 向技能追加操作指令(每个技能只能接受一种当前指令,且只能接受指定类型的操作指令，如果操作指令无法识别，则什么也不会发生)
-    /// </summary>
-    public void opEffect(OpCode newOpCode, Role otherrole, params float[] values)
-    {
-        List<OpCode> opCodelist = GetOp(newOpCode);
-        if (opCodelist == null)
-        {
-            return;
-        }
-        foreach (OpCode opCode in opCodelist)
-        {
-            if (opCode == newOpCode)
-            {
-                if (Effect_Limit_Factory())
-                {
-                    otherRole = otherrole;
-                    this.role.soul.SkillPerception(this);
-                    OpEffect_Factory(opCode, otherrole, values);
-                }
-                break;
-            }
-        }
-    }
-
-    /// <summary>
-    /// 获取可用指令
-    /// 返回一个指令组，表示可以接受的指令
-    /// </summary>
-    public abstract List<OpCode> GetOp(OpCode newOpCode);
 
     /// <summary>
     /// 检查血蓝是否足够消耗
@@ -396,7 +534,7 @@ public abstract class SkillBase
     /// <param name="timeEvent">要触发的方法</param>
     public void AddEvent(float time, TimeNode.Method timeEvent)
     {
-        AddEvent(time, timeEvent,0);
+        AddEvent(time, timeEvent, 0);
     }
 
     /// <summary>
@@ -407,8 +545,6 @@ public abstract class SkillBase
     {
         TimeNodeList.Clear();
     }
-
-    protected abstract void OpEffect_Factory(OpCode opCode, Role otherRole, params float[] values);
 
     /// <summary>
     /// 技能对象复制
@@ -426,18 +562,40 @@ public abstract class SkillBase
     /// </summary>
     public void Forget()
     {
-        Forget_Factory();
+        DestroyEffect();
         //销毁技能队列
-        
+
         //删除技能
-        skillSystem.SkillMap.Remove(Id);
+        skillSystem.SkillMap.Remove(id);
     }
 
     /// <summary>
-    /// 技能遗忘自定义部分，用于各自技能的遗忘处理
+    /// 技能效果销毁
     /// </summary>
-    public virtual void Forget_Factory()
+    public virtual void DestroyEffect()
     {
+    }
+
+    /// <summary>
+    /// 是否可以打断该技能
+    /// </summary>
+    /// <param name="skillId"></param>
+    /// <returns></returns>
+    public bool IsCancel(int skillId)
+    {
+        if (CancelAll)
+        {
+            return true;
+        }
+        if (Cancel == null)
+        {
+            return false;
+        }
+        if (Cancel.Contains(skillId))
+        {
+            return true;
+        }
+        return false;
     }
 
 }
