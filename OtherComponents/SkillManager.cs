@@ -11,7 +11,7 @@ public class SkillManager : MonoBehaviour {
     private static SkillManager _instance;
     public static SkillManager Instance { get { return _instance; } }
 
-    private Dictionary<int, SkillBase> SkillMap = new Dictionary<int, SkillBase>();
+    public Dictionary<int, SkillBase> SkillMap = new Dictionary<int, SkillBase>();
     //public 
 
     private void Awake()
@@ -21,7 +21,8 @@ public class SkillManager : MonoBehaviour {
 
     // Use this for initialization
     void Start () {
-    }
+		
+	}
 	
 	// Update is called once per frame
 	void Update () {
@@ -66,7 +67,6 @@ public class SkillManager : MonoBehaviour {
                     if (obj != null)
                     {
                         var skill = obj as SkillBase;
-                        skill.Init();
                         AddSkill(skill);
                     }
                     break;

@@ -7,8 +7,8 @@ using System.Collections;
 public enum BuffId
 {
     /// <summary>
-    /// 硬直
+    /// 灵力恢复
     /// </summary>
-    HardStraight = 1
+    MpRestore = 1
     
 }

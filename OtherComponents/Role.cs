@@ -10,7 +10,7 @@ public class Role : MonoBehaviour
     /// <summary>
     /// 对象ID(可以随意填写，但必须是唯一ID)
     /// </summary>
-    public int id;
+    private string id;
 
     /// <summary>
     /// 对象名称
@@ -23,13 +23,13 @@ public class Role : MonoBehaviour
     /// <summary>
     /// 生命值
     /// </summary>
-    public int hp = 10;
+    private int hp = 10;
     [SerializeField]
     private int maxHp = 10;
     /// <summary>
     /// 生命形态:0：存活 1：死亡
     /// </summary>
-    public int isSurvive = 0;
+    private int isSurvive = 0;
 
     public SkillSystem skillSystem;
 
@@ -88,6 +88,10 @@ public class Role : MonoBehaviour
         }
     }
 
+    public int IsSurvive { get => isSurvive; set => isSurvive = value; }
+    public string Id { get => id; set => id = value; }
+    public int Hp { get => hp; set => hp = value; }
+
     public CharacterController characterController;
     public Animator animator;
 
@@ -97,14 +101,15 @@ public class Role : MonoBehaviour
         characterController = GetComponent<CharacterController>();
         animator = GetComponent<Animator>();
         skillSystem = GetComponent<SkillSystem>();
+        skillSystem.InitSkillMap();
     }   
 
     private void Update()
     {
-        if (hp <= 0)
+        if (Hp <= 0)
         {
             animator.Play("死亡");
-            isSurvive = 1;
+            IsSurvive = 1;
         }
 
     }
@@ -114,14 +119,14 @@ public class Role : MonoBehaviour
     /// </summary>
     public void HpChange(int value)
     {
-        hp += value;
-        if (hp > MaxHp)
+        Hp += value;
+        if (Hp > MaxHp)
         {
-            hp = MaxHp;
+            Hp = MaxHp;
         }
-        if (hp < 0)
+        if (Hp < 0)
         {
-            hp = 0;
+            Hp = 0;
         }
     }
 

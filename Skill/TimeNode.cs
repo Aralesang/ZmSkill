@@ -45,4 +45,45 @@ public class TimeNode {
     /// </summary>
     public Method method;
 
+    /// <summary>
+    /// 是否处于激活状态，非激活状态下不会被调用
+    /// </summary>
+    public bool Activ = true;
+
+    /// <summary>
+    /// 委托被创建的时间
+    /// </summary>
+    public float createTime;
+
+    /// <summary>
+    /// 委托是否已经可以激活
+    /// </summary>
+    /// <returns></returns>
+    public bool IsOk()
+    {
+        float tempTime = Time.time;
+        if (createTime == 0)
+        {
+            //Debug.Log(method.Method+"准备触发"+tempTime);
+            createTime = tempTime;
+        }
+        if (!Activ)
+        {
+            return false;
+        }
+        //技能前摇是否已经结束
+        if (tempTime < createTime + time)
+        {
+            return false;
+        }
+
+        //Debug.Log("节点触发"+method.Method);
+        //技能触发周期是否已经结束
+        if (tempTime >= createTime + time + continuityTime)
+        {
+            //Debug.Log("节点关闭"+ method.Method);
+            Activ = false;
+        }
+        return true;
+    }
 }
